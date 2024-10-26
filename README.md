@@ -10,10 +10,14 @@ Main features include:
 - The tool is designed to be run in a macOS environment, but it can be easily adapted to other platforms.
 - Developers have a way to create a template for new modules.
 
+![How to](./src/how-to-gif.gif)
+
+
 ## Compilation
 Compile and execute the `ishinobu` binary in the target machine.
 ```bash
 git clone https://github.com/gnzdotmx/ishinobu.git
+cd ishinobu/ishinobu
 go build -o ishinobu main.go
 ```
 
@@ -25,8 +29,9 @@ go build -o ishinobu -ldflags -s main.go
 ```
 
 ## Usage
+Locate `ishinobu` binary in the target host and execute it as root.
 ```bash
-ishinobu -m all -e json -p 4 -v 1
+sudo ./ishinobu -m all -e json -p 4 -v 1
 ```
 ### Verbosity Levels
 
@@ -53,6 +58,7 @@ The application supports two verbosity levels:
 	- [Disabled] Configuration changes - Software installations.
 	- [Disabled] Hardware events - Peripheral connections.
 	- [Disabled] Time and date changes - System time adjustments.
+- **notificationcenter**: Collects and parses notifications from NotificationCenter.
 
 # Guide for developers
 - [DEV.md](./DEV.md)
