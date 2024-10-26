@@ -1,4 +1,4 @@
-# iShinobu
+# iShinobu - i忍
 Ishinobu is a modular triage data collection tool for macOS intended to be used by incident responders, security analysts, and forensic investigators.
 It is designed to collect system information and logs from various sources, such as system logs, network connections, running processes, and more.
 Main features include:
