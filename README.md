@@ -10,10 +10,20 @@ Main features include:
 - The tool is designed to be run in a macOS environment, but it can be easily adapted to other platforms.
 - Developers have a way to create a template for new modules.
 
-## Installation
+## Compilation
+Compile and execute the `ishinobu` binary in the target machine.
 ```bash
-go install github.com/gnzdotmx/ishinobu/ishinobu/cmd
+git clone https://github.com/gnzdotmx/ishinobu.git
+go build -o ishinobu main.go
 ```
+
+### Troubleshooting
+If the previous `ishinobu` binary is killed by the system, include `-ldflags -s` when building the binary. 
+By default on Darwin the linker will invoke dsymutil to put the debug info directly into the executable. This invocation of dsymutil is disabled by the linker's -s option.
+```
+go build -o ishinobu -ldflags -s main.go
+```
+
 ## Usage
 ```bash
 ishinobu -m all -e json -p 4 -v 1
