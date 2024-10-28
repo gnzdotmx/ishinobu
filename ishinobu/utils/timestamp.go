@@ -22,6 +22,20 @@ func ParseTimestamp(value string) (string, error) {
 	return t.Format(TimeFormat), nil
 }
 
+// Parse from Oct 26 19:34:13 to 2006-01-02T15:04:05Z07:00 format
+func ConvertDateString(input string) (string, error) {
+	currentYear := time.Now().Year()
+	inputWithYear := fmt.Sprintf("%s %d", input, currentYear)
+
+	t, err := time.Parse("Jan 2 15:04:05 2006", inputWithYear)
+	if err != nil {
+		return "", err
+	}
+
+	output := t.Format("2006-01-02T15:04:05Z07:00")
+	return output, nil
+}
+
 func ConvertCFAbsoluteTimeToDate(cfTimeStr string) (string, error) {
 	cfTime, err := strconv.ParseFloat(cfTimeStr, 64)
 	if err != nil {
