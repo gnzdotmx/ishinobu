@@ -41,10 +41,13 @@ The application supports two verbosity levels:
 - `2`: Debug, Info, and Error
 
 ## Modules
+- **asl**: Collects and parses logs from Apple System Logs (ASL).
 - **auditlogs**: Collects information from the macOS audit logs.
 - **netstat**: Collects information about current network connections.
 - **nettop**: Collects the amount of data transferred by processes and network interfaces.
+- **notificationcenter**: Collects and parses notifications from NotificationCenter.
 - **ps**: Collects the list of running processes and their details.
+- **terminalhistory**: Collects and parses terminal histories.
 - **unifiedlog**: Collects information from the macOS unified logs.
 	- [Enabled] Command line activity - Run with elevated privileges.
 	- [Enabled] SSH activity - Remmote connections.
@@ -58,7 +61,7 @@ The application supports two verbosity levels:
 	- [Disabled] Configuration changes - Software installations.
 	- [Disabled] Hardware events - Peripheral connections.
 	- [Disabled] Time and date changes - System time adjustments.
-- **notificationcenter**: Collects and parses notifications from NotificationCenter.
+
 
 # Guide for developers
 - [DEV.md](./DEV.md)
