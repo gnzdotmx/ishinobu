@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gnzdotmx/ishinobu/ishinobu/mod"
 	"github.com/gnzdotmx/ishinobu/ishinobu/utils"
@@ -55,7 +54,7 @@ func (m *TerminalModule) Run(params mod.ModuleParams) error {
 	}
 
 	for _, path := range expandedPaths {
-		username := getUsernameFromPath(path)
+		username := utils.GetUsernameFromPath(path)
 
 		file, err := os.Open(path)
 		if err != nil {
@@ -92,15 +91,4 @@ func (m *TerminalModule) Run(params mod.ModuleParams) error {
 		}
 	}
 	return nil
-}
-
-func getUsernameFromPath(path string) string {
-	var user string
-	if strings.Contains(path, "/Users/") {
-		user = strings.Split(path, "/")[2]
-	} else if strings.Contains(path, "/private/var/") {
-		user = strings.Split(path, "/")[3]
-	}
-
-	return user
 }

@@ -51,3 +51,26 @@ func ConvertCFAbsoluteTimeToDate(cfTimeStr string) (string, error) {
 
 	return formattedDate, nil
 }
+
+func ParseChromeTimestamp(microsecondsStr string) string {
+	// Parse the string to int64
+	microseconds, err := strconv.ParseInt(microsecondsStr, 10, 64)
+	if err != nil || microseconds == 0 {
+		return ""
+	}
+
+	// Convert microseconds to nanoseconds
+	nanoseconds := microseconds * 1000
+
+	// Offset between Windows epoch (1601-01-01) and Unix epoch (1970-01-01) in seconds
+	windowsToUnixOffsetSeconds := int64(11644473600)
+
+	// Subtract the offset to get Unix time in nanoseconds
+	unixNano := nanoseconds - (windowsToUnixOffsetSeconds * int64(time.Second))
+
+	// Create time.Time from Unix time in nanoseconds
+	timestamp := time.Unix(0, unixNano).UTC()
+
+	// Format the result to ISO 8601 with nanosecond precision and return
+	return timestamp.Format(TimeFormat)
+}

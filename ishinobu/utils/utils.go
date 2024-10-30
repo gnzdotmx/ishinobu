@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,4 +69,29 @@ func splitPath(path string) []string {
 		}
 	}
 	return cleanParts
+}
+
+func GetUsernameFromPath(path string) string {
+	var user string
+	if strings.Contains(path, "/Users/") {
+		user = strings.Split(path, "/")[2]
+	} else if strings.Contains(path, "/private/var/") {
+		user = strings.Split(path, "/")[3]
+	}
+
+	return user
+}
+
+func CopyFile(src, dst string) error {
+	// Read all content of src to data, may cause OOM for a large file.
+	data, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	// Write data to dst
+	err = ioutil.WriteFile(dst, data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
