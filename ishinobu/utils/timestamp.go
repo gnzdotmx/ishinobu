@@ -47,7 +47,7 @@ func ConvertCFAbsoluteTimeToDate(cfTimeStr string) (string, error) {
 	seconds := int64(unixTimestamp)
 	nanoseconds := int64((unixTimestamp - float64(seconds)) * 1e9)
 	t := time.Unix(seconds, nanoseconds).UTC()
-	formattedDate := t.Format("2006-01-02 15:04:05")
+	formattedDate := t.Format(TimeFormat)
 
 	return formattedDate, nil
 }
