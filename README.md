@@ -1,6 +1,9 @@
 # iShinobu - i忍
 Ishinobu is a modular triage data collection tool for macOS intended to be used by incident responders, security analysts, and forensic investigators.
 It is designed to collect system information and logs from various sources, such as system logs, network connections, running processes, and more.
+
+Once logs are collected in a JSON format, you can use [ishinobu2elk](https://github.com/gnzdotmx/ishinobu2elk) to visualize logs in ELK for a faster investigation.
+
 Main features include:
 - The collected data can be exported in JSON or CSV format.
 - All events are logged to a file, and the output is compressed into a single file for easy sharing.
