@@ -34,7 +34,7 @@ type ChromeModule struct {
 
 func init() {
 	module := &ChromeModule{
-		Name:        "chromehistory",
+		Name:        "chrome",
 		Description: "Collects and parses chrome history database"}
 	mod.RegisterModule(module)
 }
