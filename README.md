@@ -46,7 +46,7 @@ The application supports two verbosity levels:
 ## Modules
 - **asl**: Collects and parses logs from Apple System Logs (ASL).
 - **auditlogs**: Collects information from the macOS audit logs.
-- **chrome**: Collects and parses chrome history database.
+- **chrome**: Collects and parses chrome history, downloads, and profiles.
 	- Access history
 	- Download history
 - **netstat**: Collects information about current network connections.
