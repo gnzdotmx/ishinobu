@@ -1,6 +1,7 @@
 // This module reads and parses:
 // - Chrome history database for each user on disk.
 // - Chrome downloads database for each user on disk.
+// - Chrome profiles from the Local State file.
 // Relevant fields:
 // - visit_time: Timestamp of the visit.
 // - from_visit: ID of the previous visit (useful for tracing navigation paths).
@@ -19,6 +20,9 @@
 package modules
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +39,7 @@ type ChromeModule struct {
 func init() {
 	module := &ChromeModule{
 		Name:        "chrome",
-		Description: "Collects and parses chrome history database"}
+		Description: "Collects and parses chrome history, downloads, and profiles"}
 	mod.RegisterModule(module)
 }
 
@@ -63,6 +67,11 @@ func (m *ChromeModule) Run(params mod.ModuleParams) error {
 		err = downloadsChromeHistory(location, m.GetName(), params)
 		if err != nil {
 			params.Logger.Debug("Error when collecting downloads Chrome history: %v", err)
+		}
+
+		err = chromeProfiles(location, m.GetName(), params)
+		if err != nil {
+			params.Logger.Debug("Error when collecting Chrome profiles: %v", err)
 		}
 	}
 	return nil
@@ -230,5 +239,83 @@ func downloadsChromeHistory(location string, moduleName string, params mod.Modul
 	if err != nil {
 		params.Logger.Debug("Failed to remove directory /tmp/ishinobu", err)
 	}
+	return nil
+}
+
+func chromeProfiles(location string, moduleName string, params mod.ModuleParams) error {
+	userProfile := strings.Split(location, "/")[2]
+
+	// Define the path to the Local State file
+	localStatePath := filepath.Join(location, "Local State")
+
+	// Read the contents of the Local State file
+	data, err := ioutil.ReadFile(localStatePath)
+	if err != nil {
+		params.Logger.Debug("Failed to read Local State file: %v", err)
+		return err
+	}
+
+	// Unmarshal the JSON data
+	var localState map[string]interface{}
+	if err := json.Unmarshal(data, &localState); err != nil {
+		params.Logger.Debug("Failed to parse JSON: %v", err)
+		return err
+	}
+
+	// Navigate to the "profile" -> "info_cache" section
+	profileSection, ok := localState["profile"].(map[string]interface{})
+	if !ok {
+		params.Logger.Debug("No profile data found")
+		return err
+	}
+
+	infoCache, ok := profileSection["info_cache"].(map[string]interface{})
+	if !ok {
+		params.Logger.Debug("No info_cache data found")
+		return err
+	}
+
+	outputFileName := utils.GetOutputFileName(moduleName+"profiles", params.ExportFormat, params.OutputDir)
+	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+
+	// Collect and display profile information
+	for profileDir, info := range infoCache {
+		profileInfo, ok := info.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		recordData := make(map[string]interface{})
+		recordData["os_user_name"] = userProfile
+		recordData["profile_directory"] = profileDir
+		recordData["name"] = profileInfo["name"].(string)
+		recordData["user_name"] = profileInfo["user_name"].(string)
+		recordData["gaia_name"] = profileInfo["gaia_name"].(string)
+		recordData["gaia_given_name"] = profileInfo["gaia_given_name"].(string)
+		recordData["gaia_id"] = profileInfo["gaia_id"].(string)
+		recordData["is_consented_primary_account"] = fmt.Sprintf("%t", profileInfo["is_consented_primary_account"].(bool))
+		recordData["is_ephemeral"] = fmt.Sprintf("%t", profileInfo["is_ephemeral"].(bool))
+		recordData["is_using_default_name"] = fmt.Sprintf("%t", profileInfo["is_using_default_name"].(bool))
+		recordData["avatar_icon"] = profileInfo["avatar_icon"].(string)
+		recordData["background_apps_enabled"] = fmt.Sprintf("%t", profileInfo["background_apps"].(bool))
+		recordData["gaia_picture_file_name"] = profileInfo["gaia_picture_file_name"].(string)
+		recordData["metrics_bucket_index"] = fmt.Sprintf("%v", profileInfo["metrics_bucket_index"].(float64))
+
+		record := utils.Record{
+			CollectionTimestamp: params.CollectionTimestamp,
+			EventTimestamp:      params.CollectionTimestamp,
+			Data:                recordData,
+			SourceFile:          localStatePath,
+		}
+
+		err = writer.WriteRecord(record)
+		if err != nil {
+			params.Logger.Debug("Failed to write record: %v", err)
+		}
+	}
+
 	return nil
 }
