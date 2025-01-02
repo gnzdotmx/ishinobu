@@ -59,31 +59,32 @@ func (m *ChromeModule) Run(params mod.ModuleParams) error {
 	}
 
 	for _, location := range locations {
-		err := visitChromeHistory(location, m.GetName(), params)
-		if err != nil {
-			params.Logger.Debug("Error when collecting visiting Chrome history: %v", err)
-		}
-
-		err = downloadsChromeHistory(location, m.GetName(), params)
-		if err != nil {
-			params.Logger.Debug("Error when collecting downloads Chrome history: %v", err)
-		}
-
-		err = chromeProfiles(location, m.GetName(), params)
+		profilesDir, err := chromeProfiles(location, m.GetName(), params)
 		if err != nil {
 			params.Logger.Debug("Error when collecting Chrome profiles: %v", err)
+		}
+
+		for _, profile := range profilesDir {
+			err = visitChromeHistory(location, profile, m.GetName(), params)
+			if err != nil {
+				params.Logger.Debug("Error when collecting visiting Chrome history: %v", err)
+			}
+
+			err = downloadsChromeHistory(location, profile, m.GetName(), params)
+			if err != nil {
+				params.Logger.Debug("Error when collecting downloads Chrome history: %v", err)
+			}
+
+			err = getChromeExtensions(location, profile, m.GetName(), params)
+			if err != nil {
+				params.Logger.Debug("Error when collecting Chrome extensions %v", err)
+			}
 		}
 	}
 	return nil
 }
 
-func visitChromeHistory(location string, moduleName string, params mod.ModuleParams) error {
-	profiles, err := utils.ListFiles(filepath.Join(location, "Default", "History"))
-	if err != nil {
-		params.Logger.Debug("Error listing Chrome history files: %v", err)
-		return err
-	}
-
+func visitChromeHistory(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
 	// Create a temporary folder to store history files
 	ishinobuDir := "/tmp/ishinobu"
 	if err := os.MkdirAll(ishinobuDir, os.ModePerm); err != nil {
@@ -91,69 +92,65 @@ func visitChromeHistory(location string, moduleName string, params mod.ModulePar
 		return err
 	}
 
-	outputFileName := utils.GetOutputFileName(moduleName+"visit", params.ExportFormat, params.OutputDir)
+	outputFileName := utils.GetOutputFileName(moduleName+"-visit-"+profileUsr, params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
 		return err
 	}
-	for _, profile := range profiles {
-		userProfile := strings.Split(profile, "/")[len(strings.Split(profile, "/"))-1]
-		dst := "/tmp/ishinobu/" + userProfile + "_chrome_history"
-		err := utils.CopyFile(profile, dst)
+
+	profile := filepath.Join(location, profileUsr, "History")
+	userProfile := strings.Split(profile, "/")[len(strings.Split(profile, "/"))-1]
+	dst := "/tmp/ishinobu/" + userProfile + "_chrome_history"
+	err = utils.CopyFile(profile, dst)
+	if err != nil {
+		return fmt.Errorf("error copying file: %v", err)
+	}
+
+	query := "SELECT urls.url, urls.title, visits.visit_time, visits.from_visit, visits.transition FROM urls INNER JOIN visits ON urls.id = visits.url ORDER BY visits.visit_time DESC;"
+	rows, err := utils.QuerySQLite(dst, query)
+	if err != nil {
+		return fmt.Errorf("error querying SQLite: %v", err)
+	}
+
+	// Iterate over each row and create a record
+	recordData := make(map[string]interface{})
+	for rows.Next() {
+		var url, title, visitTime, fromVisit, transition string
+		err := rows.Scan(&url, &title, &visitTime, &fromVisit, &transition)
 		if err != nil {
-			params.Logger.Debug("Failed to copy file: %v", err)
+			params.Logger.Debug("Error scanning row: %v", err)
 			continue
 		}
 
-		query := "SELECT urls.url, urls.title, visits.visit_time, visits.from_visit, visits.transition FROM urls INNER JOIN visits ON urls.id = visits.url ORDER BY visits.visit_time DESC;"
-		rows, err := utils.QuerySQLite(dst, query)
-		if err != nil {
-			params.Logger.Debug("Error querying SQLite: %v", err)
-			continue
+		recordData["chrome_profile"] = profileUsr
+		recordData["url"] = url
+		recordData["title"] = title
+		recordData["visit_time"] = utils.ParseChromeTimestamp(visitTime)
+		recordData["from_visit"] = fromVisit
+		recordData["transition"] = transition
+
+		record := utils.Record{
+			CollectionTimestamp: params.CollectionTimestamp,
+			EventTimestamp:      recordData["visit_time"].(string),
+			Data:                recordData,
+			SourceFile:          location + "/" + profileUsr + "/History",
 		}
-
-		// Iterate over each row and create a record
-		recordData := make(map[string]interface{})
-		for rows.Next() {
-			var url, title, visitTime, fromVisit, transition string
-			err := rows.Scan(&url, &title, &visitTime, &fromVisit, &transition)
-			if err != nil {
-				params.Logger.Debug("Error scanning row: %v", err)
-				continue
-			}
-			recordData["url"] = url
-			recordData["title"] = title
-			recordData["visit_time"] = utils.ParseChromeTimestamp(visitTime)
-			recordData["from_visit"] = fromVisit
-			recordData["transition"] = transition
-
-			record := utils.Record{
-				CollectionTimestamp: params.CollectionTimestamp,
-				EventTimestamp:      recordData["visit_time"].(string),
-				Data:                recordData,
-				SourceFile:          profile,
-			}
-			err = writer.WriteRecord(record)
-			if err != nil {
-				params.Logger.Debug("Failed to write record: %v", err)
-			}
+		err = writer.WriteRecord(record)
+		if err != nil {
+			params.Logger.Debug("Failed to write record: %v", err)
 		}
 	}
 
 	// Remove temporary folder to store collected logs
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		params.Logger.Debug("Failed to remove directory /tmp/ishinobu", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
 	}
 	return nil
 }
 
-func downloadsChromeHistory(location string, moduleName string, params mod.ModuleParams) error {
-	profiles, err := utils.ListFiles(filepath.Join(location, "Default", "History"))
-	if err != nil {
-		params.Logger.Debug("Error listing Chrome history files: %v", err)
-		return err
-	}
+func downloadsChromeHistory(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
+	profile := filepath.Join(location, profileUsr, "History")
 
 	// Create a temporary folder to store history files
 	ishinobuDir := "/tmp/ishinobu"
@@ -162,21 +159,20 @@ func downloadsChromeHistory(location string, moduleName string, params mod.Modul
 		return err
 	}
 
-	outputFileName := utils.GetOutputFileName(moduleName+"downloads", params.ExportFormat, params.OutputDir)
+	outputFileName := utils.GetOutputFileName(moduleName+"-downloads-"+profileUsr, params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
 		return err
 	}
-	for _, profile := range profiles {
-		userProfile := strings.Split(profile, "/")[len(strings.Split(profile, "/"))-1]
-		dst := "/tmp/ishinobu/" + userProfile + "_download_chrome_history"
-		err := utils.CopyFile(profile, dst)
-		if err != nil {
-			params.Logger.Debug("Failed to copy file: %v", err)
-			continue
-		}
 
-		query := `
+	userProfile := strings.Split(profile, "/")[len(strings.Split(profile, "/"))-1]
+	dst := "/tmp/ishinobu/" + userProfile + "_download_chrome_history"
+	err = utils.CopyFile(profile, dst)
+	if err != nil {
+		return fmt.Errorf("error copying file: %v", err)
+	}
+
+	query := `
 		SELECT 
 			current_path, 
 			target_path, 
@@ -193,56 +189,54 @@ func downloadsChromeHistory(location string, moduleName string, params mod.Modul
 		FROM downloads
     		LEFT JOIN downloads_url_chains on downloads_url_chains.id = downloads.id
 		`
-		rows, err := utils.QuerySQLite(dst, query)
+	rows, err := utils.QuerySQLite(dst, query)
+	if err != nil {
+		return fmt.Errorf("error querying SQLite: %v", err)
+	}
+
+	// Iterate over each row and create a record
+	recordData := make(map[string]interface{})
+	for rows.Next() {
+		var current_path, target_path, start_time, end_time, danger_type, opened, last_modified, referrer, tab_url, tab_referrer_url, site_url, url string
+		err := rows.Scan(&current_path, &target_path, &start_time, &end_time, &danger_type, &opened, &last_modified, &referrer, &tab_url, &tab_referrer_url, &site_url, &url)
 		if err != nil {
-			params.Logger.Debug("Error querying SQLite: %v", err)
+			params.Logger.Debug("Error scanning row: %v", err)
 			continue
 		}
+		recordData["current_path"] = current_path
+		recordData["target_path"] = target_path
+		recordData["start_time"] = utils.ParseChromeTimestamp(start_time)
+		recordData["end_time"] = utils.ParseChromeTimestamp(end_time)
+		recordData["danger_type"] = danger_type
+		recordData["opened"] = opened
+		recordData["last_modified"] = utils.ParseChromeTimestamp(last_modified)
+		recordData["referrer"] = referrer
+		recordData["tab_url"] = tab_url
+		recordData["tab_referrer_url"] = tab_referrer_url
+		recordData["site_url"] = site_url
+		recordData["url"] = url
 
-		// Iterate over each row and create a record
-		recordData := make(map[string]interface{})
-		for rows.Next() {
-			var current_path, target_path, start_time, end_time, danger_type, opened, last_modified, referrer, tab_url, tab_referrer_url, site_url, url string
-			err := rows.Scan(&current_path, &target_path, &start_time, &end_time, &danger_type, &opened, &last_modified, &referrer, &tab_url, &tab_referrer_url, &site_url, &url)
-			if err != nil {
-				params.Logger.Debug("Error scanning row: %v", err)
-				continue
-			}
-			recordData["current_path"] = current_path
-			recordData["target_path"] = target_path
-			recordData["start_time"] = utils.ParseChromeTimestamp(start_time)
-			recordData["end_time"] = utils.ParseChromeTimestamp(end_time)
-			recordData["danger_type"] = danger_type
-			recordData["opened"] = opened
-			recordData["last_modified"] = utils.ParseChromeTimestamp(last_modified)
-			recordData["referrer"] = referrer
-			recordData["tab_url"] = tab_url
-			recordData["tab_referrer_url"] = tab_referrer_url
-			recordData["site_url"] = site_url
-			recordData["url"] = url
-
-			record := utils.Record{
-				CollectionTimestamp: params.CollectionTimestamp,
-				EventTimestamp:      recordData["start_time"].(string),
-				Data:                recordData,
-				SourceFile:          profile,
-			}
-			err = writer.WriteRecord(record)
-			if err != nil {
-				params.Logger.Debug("Failed to write record: %v", err)
-			}
+		record := utils.Record{
+			CollectionTimestamp: params.CollectionTimestamp,
+			EventTimestamp:      recordData["start_time"].(string),
+			Data:                recordData,
+			SourceFile:          profile,
+		}
+		err = writer.WriteRecord(record)
+		if err != nil {
+			params.Logger.Debug("Failed to write record: %v", err)
 		}
 	}
 
 	// Remove temporary folder to store collected logs
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		params.Logger.Debug("Failed to remove directory /tmp/ishinobu", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
 	}
 	return nil
 }
 
-func chromeProfiles(location string, moduleName string, params mod.ModuleParams) error {
+func chromeProfiles(location string, moduleName string, params mod.ModuleParams) ([]string, error) {
 	userProfile := strings.Split(location, "/")[2]
 
 	// Define the path to the Local State file
@@ -252,37 +246,41 @@ func chromeProfiles(location string, moduleName string, params mod.ModuleParams)
 	data, err := ioutil.ReadFile(localStatePath)
 	if err != nil {
 		params.Logger.Debug("Failed to read Local State file: %v", err)
-		return err
+		return nil, err
 	}
 
 	// Unmarshal the JSON data
 	var localState map[string]interface{}
 	if err := json.Unmarshal(data, &localState); err != nil {
 		params.Logger.Debug("Failed to parse JSON: %v", err)
-		return err
+		return nil, err
 	}
 
 	// Navigate to the "profile" -> "info_cache" section
 	profileSection, ok := localState["profile"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No profile data found")
-		return err
+		return nil, err
 	}
 
 	infoCache, ok := profileSection["info_cache"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No info_cache data found")
-		return err
+		return nil, err
 	}
 
 	outputFileName := utils.GetOutputFileName(moduleName+"profiles", params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	// Stores the list of profilesDir
+	profilesDir := make([]string, 0)
 
 	// Collect and display profile information
 	for profileDir, info := range infoCache {
+		profilesDir = append(profilesDir, profileDir)
 		profileInfo, ok := info.(map[string]interface{})
 		if !ok {
 			continue
@@ -309,6 +307,66 @@ func chromeProfiles(location string, moduleName string, params mod.ModuleParams)
 			EventTimestamp:      params.CollectionTimestamp,
 			Data:                recordData,
 			SourceFile:          localStatePath,
+		}
+
+		err = writer.WriteRecord(record)
+		if err != nil {
+			params.Logger.Debug("Failed to write record: %v", err)
+		}
+	}
+
+	return profilesDir, nil
+}
+
+func getChromeExtensions(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
+	extensions, err := os.ReadDir(filepath.Join(location, profileUsr, "Extensions/"))
+	if err != nil {
+		return fmt.Errorf("failed to read directory: %v", err)
+	}
+
+	outputFileName := utils.GetOutputFileName(moduleName+"-extensions-"+profileUsr, params.ExportFormat, params.OutputDir)
+	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
+	if err != nil {
+		return fmt.Errorf("failed to create data writer: %v", err)
+	}
+
+	for _, extension := range extensions {
+		manifestFiles, err := utils.ListFiles(filepath.Join(location, profileUsr, "Extensions", extension.Name(), "*", "manifest.json"))
+		if err != nil {
+			params.Logger.Debug("Failed to list manifest files: %v", err)
+		}
+
+		if len(manifestFiles) == 0 {
+			continue
+		}
+
+		data, err := ioutil.ReadFile(manifestFiles[0])
+		if err != nil {
+			params.Logger.Debug("Failed to read manifest file: %v", err)
+		}
+
+		var manifest map[string]interface{}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			params.Logger.Debug("Failed to parse JSON: %v", err)
+		}
+
+		recordData := make(map[string]interface{})
+		recordData["name"] = manifest["name"]
+		recordData["version"] = manifest["version"]
+		recordData["author"] = manifest["author"]
+		recordData["description"] = manifest["description"]
+		recordData["permissions"] = manifest["permissions"]
+		recordData["scripts"] = manifest["scripts"]
+		recordData["persistent"] = manifest["persistent"]
+		recordData["scopes"] = manifest["scopes"]
+		recordData["update_url"] = manifest["update_url"]
+		recordData["default_locale"] = manifest["default_locale"]
+
+		record := utils.Record{
+			CollectionTimestamp: params.CollectionTimestamp,
+			EventTimestamp:      params.CollectionTimestamp,
+			Data:                recordData,
+			SourceFile:          manifestFiles[0],
 		}
 
 		err = writer.WriteRecord(record)
