@@ -79,6 +79,11 @@ func (m *ChromeModule) Run(params mod.ModuleParams) error {
 			if err != nil {
 				params.Logger.Debug("Error when collecting Chrome extensions %v", err)
 			}
+
+			err = getPopupChromeSettings(location, profile, m.GetName(), params)
+			if err != nil {
+				params.Logger.Debug("Error when collecting Chrome popup settings %v", err)
+			}
 		}
 	}
 	return nil
@@ -375,5 +380,58 @@ func getChromeExtensions(location string, profileUsr string, moduleName string, 
 		}
 	}
 
+	return nil
+}
+
+func getPopupChromeSettings(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
+	// read the preferences file
+	preferencesFile := filepath.Join(location, profileUsr, "Preferences")
+	data, err := ioutil.ReadFile(preferencesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read preferences file: %v", err)
+	}
+
+	// unmarshal the JSON data
+	var preferences map[string]interface{}
+	if err := json.Unmarshal(data, &preferences); err != nil {
+		return fmt.Errorf("failed to parse JSON: %v", err)
+	}
+
+	outputFileName := utils.GetOutputFileName(moduleName+"-settings-popup-"+profileUsr, params.ExportFormat, params.OutputDir)
+	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
+	if err != nil {
+		return fmt.Errorf("failed to create data writer: %v", err)
+	}
+
+	// collect and display popup settings
+	recordData := make(map[string]interface{})
+	for key, value := range preferences["profile"].(map[string]interface{})["content_settings"].(map[string]interface{})["exceptions"].(map[string]interface{})["popups"].(map[string]interface{}) {
+		recordData["profile"] = profileUsr
+		recordData["url"] = key
+		recordData["setting"] = value.(map[string]interface{})["setting"]
+		if value.(map[string]interface{})["last_modified"] != nil {
+			recordData["last_modified"] = utils.ParseChromeTimestamp(value.(map[string]interface{})["last_modified"].(string))
+		} else {
+			recordData["last_modified"] = params.CollectionTimestamp
+		}
+
+		if recordData["setting"] == "1" {
+			recordData["setting"] = "Allowed"
+		} else {
+			recordData["setting"] = "Blocked"
+		}
+
+		record := utils.Record{
+			CollectionTimestamp: params.CollectionTimestamp,
+			EventTimestamp:      recordData["last_modified"].(string),
+			Data:                recordData,
+			SourceFile:          preferencesFile,
+		}
+
+		err = writer.WriteRecord(record)
+		if err != nil {
+			params.Logger.Debug("Failed to write record: %v", err)
+		}
+	}
 	return nil
 }
