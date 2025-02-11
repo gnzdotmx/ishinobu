@@ -50,6 +50,7 @@ The application supports two verbosity levels:
 - **lsof**: Collects information about open files, network connections, and processes.
 - **netcfgplists**: Collects information about network configurations from plist files.
 - **autostart**: Collects and parses autostart items.
+- **browsercookies**: Collects and parses browser cookies (Chrome, Firefox).
 - **netstat**: Collects information about current network connections.
 - **nettop**: Collects the amount of data transferred by processes and network interfaces.
 - **notificationcenter**: Collects and parses notifications from NotificationCenter.
