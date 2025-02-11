@@ -57,11 +57,21 @@ func (dw *DataWriter) WriteRecord(record Record) error {
 
 		for k, v := range record.Data.(map[string]interface{}) {
 			k = cleanKey(k)
-			cols = append(cols, fmt.Sprintf("%v: %v", k, v))
+			// Convert value to string and clean it for CSV
+			strValue := fmt.Sprintf("%v", v)
+			// Replace newlines with space and clean any problematic characters
+			strValue = strings.ReplaceAll(strValue, "\n", " ")
+			strValue = strings.ReplaceAll(strValue, "\r", " ")
+			cols = append(cols, fmt.Sprintf("%v: %v", k, strValue))
 		}
 
-		csvWriter.Write(cols)
+		if err := csvWriter.Write(cols); err != nil {
+			return err
+		}
 		csvWriter.Flush()
+		if err := csvWriter.Error(); err != nil {
+			return err
+		}
 	} else {
 		jsonEncoder := dw.writer.(*json.Encoder)
 		jsonrecord := map[string]interface{}{
