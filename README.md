@@ -48,6 +48,7 @@ The application supports two verbosity levels:
 - **auditlogs**: Collects information from the macOS audit logs.
 - **chrome**: Collects and parses chrome history, downloads, extensions, popup settings, and profiles.
 - **lsof**: Collects information about open files, network connections, and processes.
+- **netcfgplists**: Collects information about network configurations from plist files.
 - **autostart**: Collects and parses autostart items.
 - **netstat**: Collects information about current network connections.
 - **nettop**: Collects the amount of data transferred by processes and network interfaces.
