@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"bytes"
 	"errors"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -94,4 +96,60 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 	return nil
+}
+
+// GetCodeSignature returns the code signature information for a given program path.
+// It uses the macOS `codesign` utility to verify the signature.
+// Returns a string containing the signature information or an error if verification fails.
+func GetCodeSignature(program string) (string, error) {
+	if program == "" {
+		return "", errors.New("empty program path")
+	}
+
+	// Run codesign -vv -d on the program
+	cmd := exec.Command("codesign", "-vv", "-d", program)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		// Check if it's just an unsigned program
+		if strings.Contains(stderr.String(), "code object is not signed") {
+			return "Unsigned", nil
+		}
+		return "", err
+	}
+
+	// Parse and clean the output
+	signature := out.String()
+	if signature == "" {
+		signature = stderr.String() // codesign sometimes writes to stderr even on success
+	}
+
+	// Clean up the signature output
+	signature = strings.TrimSpace(signature)
+
+	// If we got no useful output but the command succeeded,
+	// try to get more detailed information
+	if signature == "" {
+		cmd = exec.Command("codesign", "--display", "--verbose=4", program)
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+		err = cmd.Run()
+		if err == nil {
+			signature = out.String()
+			if signature == "" {
+				signature = stderr.String()
+			}
+			signature = strings.TrimSpace(signature)
+		}
+	}
+
+	if signature == "" {
+		return "No signature information available", nil
+	}
+
+	return signature, nil
 }
