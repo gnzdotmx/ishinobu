@@ -59,6 +59,7 @@ The application supports two verbosity levels:
 - **notificationcenter**: Collects and parses notifications from NotificationCenter.
 - **ps**: Collects the list of running processes and their details.
 - **quarantineevents**: Collects and parses QuarantineEventsV2 database.
+- **quicklook**: Collects and parses QuickLook database.
 - **terminalhistory**: Collects and parses terminal histories.
 - **unifiedlog**: Collects information from the macOS unified logs.
 	- [Enabled] Command line activity - Run with elevated privileges.
