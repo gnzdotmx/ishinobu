@@ -115,13 +115,13 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 
 	// Get computer name and hostname
 	if systemConfig != nil {
-		if computerName, ok := getNestedValue(systemConfig, "System", "Network", "HostNames", "LocalHostName").(string); ok {
+		if computerName, ok := utils.GetNestedValue(systemConfig, "System", "Network", "HostNames", "LocalHostName").(string); ok {
 			recordData["local_hostname"] = computerName
 		}
-		if computerName, ok := getNestedValue(systemConfig, "System", "Network", "HostNames", "ComputerName").(string); ok {
+		if computerName, ok := utils.GetNestedValue(systemConfig, "System", "Network", "HostNames", "ComputerName").(string); ok {
 			recordData["computer_name"] = computerName
 		}
-		if hostname, ok := getNestedValue(systemConfig, "System", "Network", "HostNames", "HostName").(string); ok {
+		if hostname, ok := utils.GetNestedValue(systemConfig, "System", "Network", "HostNames", "HostName").(string); ok {
 			recordData["hostname"] = hostname
 		}
 	}
@@ -183,20 +183,4 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 	}
 
 	return writer.WriteRecord(record)
-}
-
-// Helper function to safely get nested map values
-func getNestedValue(m map[string]interface{}, keys ...string) interface{} {
-	current := m
-	for i, key := range keys {
-		if i == len(keys)-1 {
-			return current[key]
-		}
-		if val, ok := current[key].(map[string]interface{}); ok {
-			current = val
-		} else {
-			return nil
-		}
-	}
-	return nil
 }
