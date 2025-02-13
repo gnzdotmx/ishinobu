@@ -116,7 +116,7 @@ func (m *UsersModule) Run(params mod.ModuleParams) error {
 		recordData["user"] = userName
 		recordData["real_name"] = userInfo.RealName
 		recordData["uniq_id"] = userInfo.UniqueID
-		recordData["admin"] = contains(adminUsers, userName)
+		recordData["admin"] = utils.Contains(adminUsers, userName)
 		recordData["lastloggedin_user"] = (userName == lastUser)
 
 		// Get file timestamps
@@ -250,13 +250,4 @@ func getUserInfo(username string) (*UserInfo, error) {
 	}
 
 	return userInfo, nil
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

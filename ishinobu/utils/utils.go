@@ -153,3 +153,28 @@ func GetCodeSignature(program string) (string, error) {
 
 	return signature, nil
 }
+
+func Contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// Helper function to safely get nested map values
+func GetNestedValue(m map[string]interface{}, keys ...string) interface{} {
+	current := m
+	for i, key := range keys {
+		if i == len(keys)-1 {
+			return current[key]
+		}
+		if val, ok := current[key].(map[string]interface{}); ok {
+			current = val
+		} else {
+			return nil
+		}
+	}
+	return nil
+}
