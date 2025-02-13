@@ -63,6 +63,7 @@ The application supports two verbosity levels:
 - **safari**: Collects and parses safari history, downloads, and extensions.
 - **spotlight**: Collects and parses Spotlight shortcuts data.
 - **ssh**: Collects and parses SSH known_hosts and authorized_keys files.
+- **syslog**: Collects and parses system.log files.
 - **terminalhistory**: Collects and parses terminal histories.
 - **unifiedlog**: Collects information from the macOS unified logs.
 	- [Enabled] Command line activity - Run with elevated privileges.
