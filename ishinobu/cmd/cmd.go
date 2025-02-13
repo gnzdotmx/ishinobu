@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"github.com/gnzdotmx/ishinobu/ishinobu/mod"
 	_ "github.com/gnzdotmx/ishinobu/ishinobu/modules"
 	"github.com/gnzdotmx/ishinobu/ishinobu/utils"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -19,29 +19,50 @@ const (
 	outputDir   = "./"
 )
 
-func Execute() {
-	// Command-line flags
-	modulesFlag := flag.String("m", "all", "Modules to run (comma-separated or 'all')")
-	exportFormat := flag.String("e", "json", "Export format (json or csv)")
-	parallelism := flag.Int("p", 4, "Number of modules to run in parallel")
-	verbosity := flag.Int("v", 1, "Verbosity level (0=Error, 1=Info, 2=Debug)")
-	flag.Parse()
+var (
+	// Command line flags
+	modulesFlag  string
+	exportFormat string
+	parallelism  int
+	verbosity    int
 
+	// Root command
+	rootCmd = &cobra.Command{
+		Use:   "ishinobu",
+		Short: "Ishinobu is a data collection tool",
+		Long:  `A tool for collecting and exporting system data in various formats`,
+		RunE:  run,
+	}
+)
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func init() {
+	// Define flags
+	rootCmd.Flags().StringVarP(&modulesFlag, "modules", "m", "all", "Modules to run (comma-separated or 'all')")
+	rootCmd.Flags().StringVarP(&exportFormat, "export", "e", "json", "Export format (json or csv)")
+	rootCmd.Flags().IntVarP(&parallelism, "parallel", "p", 4, "Number of modules to run in parallel")
+	rootCmd.Flags().IntVarP(&verbosity, "verbosity", "v", 1, "Verbosity level (0=Error, 1=Info, 2=Debug)")
+}
+
+func run(cmd *cobra.Command, args []string) error {
 	// Initialize logger
 	logger := utils.NewLogger()
-	logger.SetVerbosity(*verbosity)
+	logger.SetVerbosity(verbosity)
 	defer logger.Close()
 
 	// Create a temporary folder to store log files
 	if err := os.MkdirAll(logsDir, os.ModePerm); err != nil {
-		logger.Error("Failed to create directory %s: %v", logsDir, err)
+		return fmt.Errorf("failed to create directory %s: %v", logsDir, err)
 	}
 
 	// Get hostnames
 	hostname, err := utils.GetHostname()
 	if err != nil {
-		logger.Error("Failed to get hostname: %v", err)
-		return
+		return fmt.Errorf("failed to get hostname: %v", err)
 	}
 
 	// Collection timestamp
@@ -49,30 +70,30 @@ func Execute() {
 
 	// Parse modules
 	var selectedModules []string
-	if *modulesFlag == "all" {
+	if modulesFlag == "all" {
 		logger.Info("Running all modules")
 		selectedModules = mod.AllModules()
 	} else {
-		logger.Info("Running selected modules: %s", *modulesFlag)
-		selectedModules = strings.Split(*modulesFlag, ",")
+		logger.Info("Running selected modules: %s", modulesFlag)
+		selectedModules = strings.Split(modulesFlag, ",")
 	}
 
 	fmt.Printf("Selected modules: %v\n", selectedModules)
 
 	// Prepare module parameters
 	params := mod.ModuleParams{
-		ExportFormat:        *exportFormat,
+		ExportFormat:        exportFormat,
 		CollectionTimestamp: collectionTimestamp,
 		Logger:              *logger,
 		LogsDir:             logsDir,
 		InputDir:            modInputDir,
 		OutputDir:           outputDir,
-		Verbosity:           *verbosity,
+		Verbosity:           verbosity,
 	}
 
 	// Run modules
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, *parallelism)
+	sem := make(chan struct{}, parallelism)
 
 	for _, moduleName := range selectedModules {
 		wg.Add(1)
@@ -112,4 +133,5 @@ func Execute() {
 	}
 
 	logger.Info("Data collection completed")
+	return nil
 }
