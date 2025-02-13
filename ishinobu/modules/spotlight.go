@@ -1,3 +1,10 @@
+// This module collects and parses Spotlight shortcuts data.
+// It collects the following information:
+// - Username
+// - Shortcut
+// - Display name
+// - Last used
+// - URL
 package modules
 
 import (

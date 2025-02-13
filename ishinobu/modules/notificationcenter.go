@@ -1,6 +1,12 @@
 // This module intends to collect and parse notifications from NotificationCenter.
 // The notifications are stored in a SQLite database located at /private/var/folders/*/*/0/com.apple.notificationcenter/db2/db*.
 // The notifications are stored temporarily until the user clears them from the NotificationCenter.
+// It collects the following information:
+// - Delivered date
+// - Date
+// - App
+// - Category
+// - URL
 package modules
 
 import (

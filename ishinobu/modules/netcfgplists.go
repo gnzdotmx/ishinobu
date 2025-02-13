@@ -1,3 +1,7 @@
+// This module collects information about network configurations from plist files.
+// It collects the following information:
+// - Airport preferences
+// - Network interfaces
 package modules
 
 import (

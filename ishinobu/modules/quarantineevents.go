@@ -1,3 +1,10 @@
+// This module collects and parses QuarantineEventsV2 database.
+// It collects the following information:
+// - Identifier
+// - Timestamp
+// - Bundle ID
+// - Quarantine Agent
+// - Download URL
 package modules
 
 import (

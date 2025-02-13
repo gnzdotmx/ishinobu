@@ -1,3 +1,7 @@
+// This module collects and parses CoreAnalytics artifacts.
+// It collects the following information:
+// - Analytics files
+// - Aggregate files
 package modules
 
 import (

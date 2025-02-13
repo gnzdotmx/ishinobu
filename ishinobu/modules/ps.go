@@ -1,5 +1,12 @@
 // The module is useful to investigate the list of running processes and their details.
 // Command: ps aux
+// It collects the following information:
+// - PID
+// - User
+// - Command
+// - CPU usage
+// - Memory usage
+// - Status
 package modules
 
 import (

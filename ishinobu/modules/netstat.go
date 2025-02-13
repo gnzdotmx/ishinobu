@@ -1,5 +1,12 @@
 // This module is useful to investigate the list of current network connections and their details.
 // Command: netstat -anv
+// It collects the following information:
+// - Protocol
+// - Local Address
+// - Foreign Address
+// - State
+// - PID
+// - Program name
 package modules
 
 import (
