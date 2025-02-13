@@ -44,29 +44,30 @@ The application supports two verbosity levels:
 - `2`: Debug, Info, and Error
 
 ## Modules
-1. **asl**: Collects and parses logs from Apple System Logs (ASL).
-2. **auditlogs**: Collects information from the macOS audit logs.
-3. **chrome**: Collects and parses chrome history, downloads, extensions, popup settings, and profiles.
-4. **coreanalytics**: Collects and parses coreanalytics data.
-5. **firefox**: Collects and parses Firefox browser history, downloads, and extensions.
-6. **listfiles**: Collects metadata for files and folders on disk (Warning: This module can take a while to complete based on the amount of files in the system).
-7. **lsof**: Collects information about open files, network connections, and processes.
-8. **netcfgplists**: Collects information about network configurations from plist files.
-9. **autostart**: Collects and parses autostart items.
-10. **browsercookies**: Collects and parses browser cookies (Chrome, Firefox).
-11. **netstat**: Collects information about current network connections.
-12. **nettop**: Collects the amount of data transferred by processes and network interfaces.
-13. **notificationcenter**: Collects and parses notifications from NotificationCenter.
-14. **ps**: Collects the list of running processes and their details.
-15. **quarantineevents**: Collects and parses QuarantineEventsV2 database.
-16. **quicklook**: Collects and parses QuickLook database.
-17. **safari**: Collects and parses safari history, downloads, and extensions.
-18. **spotlight**: Collects and parses Spotlight shortcuts data.
-19. **ssh**: Collects and parses SSH known_hosts and authorized_keys files.
-20. **syslog**: Collects and parses system.log files.
-21. **systeminfo**: Collects and parses system information.
-22. **terminal**: Collects and parses Terminal.app saved state and terminal histories.
-23. **unifiedlog**: Collects information from the macOS unified logs.
+- **appstore**: Collects App Store installation history and receipt information.
+- **asl**: Collects and parses logs from Apple System Logs (ASL).
+- **auditlogs**: Collects information from the macOS audit logs.
+- **chrome**: Collects and parses chrome history, downloads, extensions, popup settings, and profiles.
+- **coreanalytics**: Collects and parses coreanalytics data.
+- **firefox**: Collects and parses Firefox browser history, downloads, and extensions.
+- **listfiles**: Collects metadata for files and folders on disk (Warning: This module can take a while to complete based on the amount of files in the system).
+- **lsof**: Collects information about open files, network connections, and processes.
+- **netcfgplists**: Collects information about network configurations from plist files.
+- **autostart**: Collects and parses autostart items.
+- **browsercookies**: Collects and parses browser cookies (Chrome, Firefox).
+- **netstat**: Collects information about current network connections.
+- **nettop**: Collects the amount of data transferred by processes and network interfaces.
+- **notificationcenter**: Collects and parses notifications from NotificationCenter.
+- **ps**: Collects the list of running processes and their details.
+- **quarantineevents**: Collects and parses QuarantineEventsV2 database.
+- **quicklook**: Collects and parses QuickLook database.
+- **safari**: Collects and parses safari history, downloads, and extensions.
+- **spotlight**: Collects and parses Spotlight shortcuts data.
+- **ssh**: Collects and parses SSH known_hosts and authorized_keys files.
+- **syslog**: Collects and parses system.log files.
+- **systeminfo**: Collects and parses system information.
+- **terminal**: Collects and parses Terminal.app saved state and terminal histories.
+- **unifiedlog**: Collects information from the macOS unified logs.
 	- [Enabled] Command line activity - Run with elevated privileges.
 	- [Enabled] SSH activity - Remmote connections.
 	- [Enabled] Screen sharing activity - Remote desktop connections.
@@ -79,8 +80,8 @@ The application supports two verbosity levels:
 	- [Disabled] Configuration changes - Software installations.
 	- [Disabled] Hardware events - Peripheral connections.
 	- [Disabled] Time and date changes - System time adjustments.
-24. **users**: Collects and parses user information.
-25. **utmpx**: Collects and parses utmpx login records.
+- **users**: Collects and parses user information.
+- **utmpx**: Collects and parses utmpx login records.
 
 # Guide for developers
 - [DEV.md](./DEV.md)
