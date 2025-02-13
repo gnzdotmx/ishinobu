@@ -65,7 +65,7 @@ The application supports two verbosity levels:
 - **ssh**: Collects and parses SSH known_hosts and authorized_keys files.
 - **syslog**: Collects and parses system.log files.
 - **systeminfo**: Collects and parses system information.
-- **terminalhistory**: Collects and parses terminal histories.
+- **terminal**: Collects and parses Terminal.app saved state and terminal histories.
 - **unifiedlog**: Collects information from the macOS unified logs.
 	- [Enabled] Command line activity - Run with elevated privileges.
 	- [Enabled] SSH activity - Remmote connections.
