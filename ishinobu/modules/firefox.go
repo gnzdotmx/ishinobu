@@ -1,5 +1,10 @@
 // This module collects and parses Firefox browser history, downloads, and extensions.
 // It also collects information about the Firefox profile.
+// It collects the following information:
+// - Firefox history
+// - Firefox downloads
+// - Firefox extensions
+// - Firefox profile
 package modules
 
 import (

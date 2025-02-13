@@ -1,4 +1,11 @@
 // This module collects and parses audit logs using praudit command over the files in /private/var/audit directory.
+// It collects the following information:
+// - Event
+// - Modifier
+// - Time
+// - Msec
+// - Arg-num
+// - Value
 package modules
 
 import (

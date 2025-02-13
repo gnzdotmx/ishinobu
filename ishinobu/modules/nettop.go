@@ -1,5 +1,12 @@
 // This module is useful to investigate the amount of data transferred by processes and network interfaces.
 // Command: nettop -n -P -J interface,state,bytes_in,bytes_out,packets_in,packets_out -L 1
+// It collects the following information:
+// - Interface
+// - State
+// - Bytes in
+// - Bytes out
+// - Packets in
+// - Packets out
 package modules
 
 import (

@@ -1,3 +1,9 @@
+// This module collects and parses system.log files.
+// It collects the following information:
+// - System name
+// - Process name
+// - PID
+// - Message
 package modules
 
 import (

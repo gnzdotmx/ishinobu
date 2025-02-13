@@ -1,3 +1,9 @@
+// This module enumerates current and deleted user profiles, identifies admin users and last logged in user.
+// It collects the following information:
+// - Deleted users
+// - Admin users
+// - Last logged in user
+// - Current users
 package modules
 
 import (

@@ -1,6 +1,13 @@
 // This module collects and parses logs from Apple System Logs (ASL).
 // The module uses the syslog command to read logs from the ASL database and
 // parse them as XML. The parsed logs are then printed to the console.
+// It collects the following information:
+// - ASLMessageID
+// - Time
+// - TimeNanoSec
+// - Level
+// - PID
+// - UID
 package modules
 
 import (

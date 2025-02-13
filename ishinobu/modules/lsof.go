@@ -1,5 +1,12 @@
 // This module is useful to investigate open files, network connections, and processes that opened them.
 // Command: lsof -n -P
+// It collects the following information:
+// - PID
+// - User
+// - Command
+// - File
+// - File descriptor
+// - File type
 package modules
 
 import (

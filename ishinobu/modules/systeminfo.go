@@ -1,3 +1,11 @@
+// This module collects basic system information to identify the host.
+// It collects the following information:
+// - System appearance (Dark/Light mode)
+// - System language
+// - System locale
+// - Keyboard layout
+// - Computer name
+// - Hostname
 package modules
 
 import (

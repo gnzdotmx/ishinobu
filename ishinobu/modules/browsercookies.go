@@ -1,3 +1,7 @@
+// This module collects and parses browser cookies from Chrome and Firefox.
+// It collects the following information:
+// - Chrome cookies
+// - Firefox cookies
 package modules
 
 import (

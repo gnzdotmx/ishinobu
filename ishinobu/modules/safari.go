@@ -1,3 +1,8 @@
+// This module collects and parses Safari history, downloads, and extensions.
+// It collects the following information:
+// - Safari history
+// - Safari downloads
+// - Safari extensions
 package modules
 
 import (
