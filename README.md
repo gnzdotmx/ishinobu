@@ -79,7 +79,7 @@ The application supports two verbosity levels:
 	- [Disabled] Configuration changes - Software installations.
 	- [Disabled] Hardware events - Peripheral connections.
 	- [Disabled] Time and date changes - System time adjustments.
-
+- **users**: Collects and parses user information.
 
 # Guide for developers
 - [DEV.md](./DEV.md)
