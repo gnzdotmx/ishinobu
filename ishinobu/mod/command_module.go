@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/gnzdotmx/ishinobu/ishinobu/utils"
 )
@@ -28,6 +29,8 @@ func (c *CommandModule) GetDescription() string {
 // Input: ModuleParams (collection timestamp, export format, output directory, logs directory)
 // Output: error
 func (c *CommandModule) Run(params ModuleParams) error {
+	start := time.Now()
+
 	// Run the command
 	cmd := exec.Command(c.Command, c.Args...)
 	// Set the TZ environment variable to UTC
@@ -93,5 +96,9 @@ func (c *CommandModule) Run(params ModuleParams) error {
 			return fmt.Errorf("error writing record: %v", err)
 		}
 	}
+
+	elapsed := time.Since(start)
+
+	params.Logger.Info("✓ Module %s completed in %s", c.ModuleName, elapsed)
 	return nil
 }

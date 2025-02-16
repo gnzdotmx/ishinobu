@@ -21,6 +21,7 @@ type ModuleParams struct {
 	InputDir            string
 	OutputDir           string
 	Verbosity           int
+	StartTime           int64 // Add start time tracking
 }
 
 func RegisterModule(module Module) {
