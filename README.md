@@ -34,7 +34,7 @@ go build -o ishinobu -ldflags -s main.go
 ## Usage
 Locate `ishinobu` binary in the target host and execute it as root.
 ```bash
-sudo ./ishinobu -m all -e json -p 4 -v 1
+sudo ./ishinobu -m all -e json -p 4 -v 1 -t 60
 ```
 ### Verbosity Levels
 
@@ -42,6 +42,13 @@ The application supports two verbosity levels:
 
 - `1`: Info and Error
 - `2`: Debug, Info, and Error
+
+### Timeout
+
+The application supports a timeout for each module.
+
+- `0`: No timeout
+- `60`: 60 seconds
 
 ## Modules
 - **appstore**: Collects App Store installation history and receipt information.

@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gnzdotmx/ishinobu/ishinobu/mod"
 	_ "github.com/gnzdotmx/ishinobu/ishinobu/modules"
@@ -25,15 +27,16 @@ var (
 	exportFormat string
 	parallelism  int
 	verbosity    int
-
-	// Root command
-	rootCmd = &cobra.Command{
-		Use:   "ishinobu",
-		Short: "Ishinobu is a data collection tool",
-		Long:  `A tool for collecting and exporting system data in various formats`,
-		RunE:  run,
-	}
+	timeout      int
 )
+
+// Root command
+var rootCmd = &cobra.Command{
+	Use:   "ishinobu",
+	Short: "Ishinobu is a data collection tool",
+	Long:  `A tool for collecting and exporting system data in various formats`,
+	RunE:  run,
+}
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() error {
@@ -46,6 +49,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&exportFormat, "export", "e", "json", "Export format (json or csv)")
 	rootCmd.Flags().IntVarP(&parallelism, "parallel", "p", 4, "Number of modules to run in parallel")
 	rootCmd.Flags().IntVarP(&verbosity, "verbosity", "v", 1, "Verbosity level (0=Error, 1=Info, 2=Debug)")
+	rootCmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "Timeout in seconds for each module (0 = no timeout)")
 }
 
 func run(cmd *cobra.Command, args []string) error {
@@ -91,6 +95,85 @@ func run(cmd *cobra.Command, args []string) error {
 		Verbosity:           verbosity,
 	}
 
+	// Track total execution time
+	startTime := time.Now()
+
+	// Create context for timeout
+	ctx := context.Background()
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+		defer cancel()
+	}
+
+	// Create a map to track module status
+	type moduleStatus struct {
+		startTime time.Time
+		status    string // "running", "completed", "failed", "timeout"
+		elapsed   time.Duration
+	}
+	statusMap := make(map[string]*moduleStatus)
+	var statusMutex sync.Mutex
+
+	// Function to print status
+	printStatus := func() {
+		statusMutex.Lock()
+		defer statusMutex.Unlock()
+
+		// Move cursor to the start of the status display
+		fmt.Print("\033[0;0H") // Move to top-left
+		fmt.Print("\033[2J")   // Clear screen
+
+		fmt.Println("Module Status:")
+		fmt.Println("==============")
+
+		for _, moduleName := range selectedModules {
+			status := statusMap[moduleName]
+			if status == nil {
+				fmt.Printf("  %s: \033[33m●\033[0m Waiting\n", moduleName)
+				continue
+			}
+
+			// Determine icon and color
+			var icon, color string
+			switch status.status {
+			case "running":
+				icon = "●"
+				color = "\033[33m" // Yellow
+			case "completed":
+				icon = "✓"
+				color = "\033[32m" // Green
+			case "failed", "timeout":
+				icon = "✗"
+				color = "\033[31m" // Red
+			}
+
+			fmt.Printf("  %s: %s%s\033[0m %s (%.1f/%.1fs)\n",
+				moduleName,
+				color,
+				icon,
+				status.status,
+				status.elapsed.Seconds(),
+				float64(timeout),
+			)
+		}
+	}
+
+	// Start status printer
+	stopPrinter := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				printStatus()
+			case <-stopPrinter:
+				return
+			}
+		}
+	}()
+
 	// Run modules
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, parallelism)
@@ -101,13 +184,39 @@ func run(cmd *cobra.Command, args []string) error {
 
 		go func(moduleName string) {
 			defer wg.Done()
-			logger.Info("Starting module: %s", moduleName)
 
-			err := mod.RunModule(moduleName, params)
-			if err != nil {
-				logger.Error("Module %s failed: %v", moduleName, err)
-			} else {
-				logger.Info("Module %s completed", moduleName)
+			// Initialize status
+			statusMutex.Lock()
+			statusMap[moduleName] = &moduleStatus{
+				startTime: time.Now(),
+				status:    "running",
+			}
+			statusMutex.Unlock()
+
+			// Create channel for module execution
+			done := make(chan error, 1)
+			go func() {
+				done <- mod.RunModule(moduleName, params)
+			}()
+
+			// Wait for module to finish or timeout
+			select {
+			case err := <-done:
+				statusMutex.Lock()
+				status := statusMap[moduleName]
+				status.elapsed = time.Since(status.startTime)
+				if err != nil {
+					status.status = "failed"
+				} else {
+					status.status = "completed"
+				}
+				statusMutex.Unlock()
+			case <-ctx.Done():
+				statusMutex.Lock()
+				status := statusMap[moduleName]
+				status.elapsed = time.Since(status.startTime)
+				status.status = "timeout"
+				statusMutex.Unlock()
 			}
 
 			<-sem
@@ -115,6 +224,11 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	wg.Wait()
+	close(stopPrinter)
+	printStatus() // Final status update
+
+	totalElapsed := time.Since(startTime)
+	logger.Info("🏁 All modules completed in %s", totalElapsed)
 
 	// Compress output
 	outputName := fmt.Sprintf("%s.%s.tar.gz", hostname, collectionTimestamp)
