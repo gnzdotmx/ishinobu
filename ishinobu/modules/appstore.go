@@ -172,7 +172,7 @@ func collectAppReceipts(moduleName string, params mod.ModuleParams) error {
 		if _, err := os.Stat(receiptPath); err == nil {
 			// Get app bundle identifier
 			infoPlistPath := filepath.Join(appPath, "Contents", "Info.plist")
-			infoPlistData, err := utils.ReadFile(infoPlistPath)
+			infoPlistData, err := os.ReadFile(infoPlistPath)
 			if err != nil {
 				continue
 			}
@@ -238,7 +238,7 @@ func collectStoreConfiguration(moduleName string, params mod.ModuleParams) error
 		for _, path := range paths {
 			username := utils.GetUsernameFromPath(path)
 
-			data, err := utils.ReadFile(path)
+			data, err := os.ReadFile(path)
 			if err != nil {
 				continue
 			}
