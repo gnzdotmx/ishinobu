@@ -8,6 +8,11 @@ import (
 )
 
 func ParseBiPList(data string) (map[string]interface{}, error) {
+	// Check for empty input
+	if len(data) == 0 {
+		return nil, fmt.Errorf("empty plist data")
+	}
+
 	// Initialize a decoder from the string data
 	decoder := plist.NewDecoder(bytes.NewReader([]byte(data)))
 
