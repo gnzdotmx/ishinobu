@@ -9,6 +9,7 @@
 package modules
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -53,7 +54,7 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 	recordData := make(map[string]interface{})
 
 	// Read and parse the plist file
-	globalPrefsFile, err := utils.ReadFile(globalPrefsPath)
+	globalPrefsFile, err := os.ReadFile(globalPrefsPath)
 	if err != nil {
 		params.Logger.Debug("Error reading GlobalPreferences: %v", err)
 	}
@@ -90,7 +91,7 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 		}
 	}
 
-	systemConfigFile, err := utils.ReadFile(systemConfigPath)
+	systemConfigFile, err := os.ReadFile(systemConfigPath)
 	if err != nil {
 		params.Logger.Debug("Error reading system configuration: %v", err)
 	}
@@ -100,7 +101,7 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 		params.Logger.Debug("Error reading system configuration: %v", err)
 	}
 
-	systemVersionFile, err := utils.ReadFile(systemVersionPath)
+	systemVersionFile, err := os.ReadFile(systemVersionPath)
 	if err != nil {
 		params.Logger.Debug("Error reading system version: %v", err)
 	}

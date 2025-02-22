@@ -9,6 +9,7 @@ package modules
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -82,7 +83,7 @@ func processSpotlightFile(file string, moduleName string, params mod.ModuleParam
 	}
 
 	// Read and parse the plist file
-	data, err := utils.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %v", err)
 	}
