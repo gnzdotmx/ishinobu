@@ -22,7 +22,6 @@ package modules
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -248,7 +247,7 @@ func chromeProfiles(location string, moduleName string, params mod.ModuleParams)
 	localStatePath := filepath.Join(location, "Local State")
 
 	// Read the contents of the Local State file
-	data, err := ioutil.ReadFile(localStatePath)
+	data, err := os.ReadFile(localStatePath)
 	if err != nil {
 		params.Logger.Debug("Failed to read Local State file: %v", err)
 		return nil, err
@@ -345,7 +344,7 @@ func getChromeExtensions(location string, profileUsr string, moduleName string, 
 			continue
 		}
 
-		data, err := ioutil.ReadFile(manifestFiles[0])
+		data, err := os.ReadFile(manifestFiles[0])
 		if err != nil {
 			params.Logger.Debug("Failed to read manifest file: %v", err)
 		}
@@ -386,7 +385,7 @@ func getChromeExtensions(location string, profileUsr string, moduleName string, 
 func getPopupChromeSettings(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
 	// read the preferences file
 	preferencesFile := filepath.Join(location, profileUsr, "Preferences")
-	data, err := ioutil.ReadFile(preferencesFile)
+	data, err := os.ReadFile(preferencesFile)
 	if err != nil {
 		return fmt.Errorf("failed to read preferences file: %v", err)
 	}

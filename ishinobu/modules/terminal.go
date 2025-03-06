@@ -14,7 +14,6 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -193,7 +192,7 @@ func processTerminalState(location string, params mod.ModuleParams, writer *util
 	}
 
 	// Read data.data file
-	data, err := ioutil.ReadFile(dataFile)
+	data, err := os.ReadFile(dataFile)
 	if err != nil {
 		return fmt.Errorf("error reading data.data: %v", err)
 	}
@@ -204,7 +203,7 @@ func processTerminalState(location string, params mod.ModuleParams, writer *util
 	}
 
 	// Parse windows.plist
-	windowsPlistData, err := ioutil.ReadFile(windowsPlist)
+	windowsPlistData, err := os.ReadFile(windowsPlist)
 	if err != nil {
 		return fmt.Errorf("error reading windows.plist: %v", err)
 	}

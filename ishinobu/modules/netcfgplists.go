@@ -5,7 +5,7 @@
 package modules
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/gnzdotmx/ishinobu/ishinobu/mod"
 	"github.com/gnzdotmx/ishinobu/ishinobu/utils"
@@ -55,7 +55,7 @@ func parseAirportPreferences(moduleName string, params mod.ModuleParams) error {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func parseNetworkInterfaces(moduleName string, params mod.ModuleParams) error {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return err
 	}

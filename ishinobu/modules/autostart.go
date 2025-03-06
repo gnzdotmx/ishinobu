@@ -11,7 +11,7 @@
 package modules
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -103,7 +103,7 @@ func parseLaunchItems(moduleName string, params mod.ModuleParams) error {
 		}
 
 		for _, file := range files {
-			data, err := ioutil.ReadFile(file)
+			data, err := os.ReadFile(file)
 			if err != nil {
 				continue
 			}
@@ -176,7 +176,7 @@ func parseLoginItems(moduleName string, params mod.ModuleParams) error {
 	}
 
 	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}
@@ -376,7 +376,7 @@ func parseCronJobs(moduleName string, params mod.ModuleParams) error {
 	}
 
 	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}
@@ -422,7 +422,7 @@ func parseSandboxedLoginItems(moduleName string, params mod.ModuleParams) error 
 	}
 
 	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}

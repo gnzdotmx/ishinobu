@@ -7,7 +7,6 @@ package modules
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,7 +126,7 @@ func parseAnalyticsFiles(moduleName string, params mod.ModuleParams) error {
 	}
 
 	for _, file := range analyticsFiles {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			params.Logger.Debug("Error reading file %s: %v", file, err)
 			continue
@@ -236,7 +235,7 @@ func parseAggregateFiles(moduleName string, params mod.ModuleParams) error {
 	}
 
 	for _, file := range aggregateFiles {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			params.Logger.Debug("Error reading aggregate file: %v", err)
 			continue
