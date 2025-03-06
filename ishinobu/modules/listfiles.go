@@ -68,15 +68,15 @@ const (
 
 // Default paths relevant for IR triage
 var defaultPaths = []string{
-	"/Users",                        // User home directories
-	"/Applications",                 // Installed applications
-	"/Library",                      // System libraries and configurations
-	"/private/var/log",              // System logs
-	"/private/etc",                  // System configurations
-	"/System/Library/LaunchAgents",  // Launch agents
-	"/System/Library/LaunchDaemons", // Launch daemons
-	"/Library/LaunchAgents",
-	"/Library/LaunchDaemons",
+	"/Users",        // User home directories
+	"/Applications", // Installed applications
+	// "/Library",         // System libraries and configurations
+	// "/private/var/log", // System logs
+	// "/private/etc",                  // System configurations
+	// "/System/Library/LaunchAgents",  // Launch agents
+	// "/System/Library/LaunchDaemons", // Launch daemons
+	// "/Library/LaunchAgents",
+	// "/Library/LaunchDaemons",
 }
 
 // Interesting file extensions for IR triage
