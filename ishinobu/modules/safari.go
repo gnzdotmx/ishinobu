@@ -7,7 +7,6 @@ package modules
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,7 +103,7 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 	// Parse recently closed tabs
 	recentlyClosedFile := filepath.Join(location, "RecentlyClosedTabs.plist")
 	recentlyClosed := make(map[string][]string)
-	if data, err := ioutil.ReadFile(recentlyClosedFile); err == nil {
+	if data, err := os.ReadFile(recentlyClosedFile); err == nil {
 		var plistData interface{}
 		if _, err := plist.Unmarshal(data, &plistData); err == nil {
 			if states, ok := plistData.(map[string]interface{})["ClosedTabOrWindowPersistentStates"].([]interface{}); ok {
@@ -183,7 +182,7 @@ func downloadsSafariHistory(location string, moduleName string, params mod.Modul
 
 	// Read Downloads.plist
 	downloadsFile := filepath.Join(location, "Downloads.plist")
-	data, err := ioutil.ReadFile(downloadsFile)
+	data, err := os.ReadFile(downloadsFile)
 	if err != nil {
 		return fmt.Errorf("failed to read Downloads.plist: %v", err)
 	}
@@ -240,7 +239,7 @@ func getSafariExtensions(location string, moduleName string, params mod.ModulePa
 	// Read Extensions.plist
 	extensionsDir := filepath.Join(location, "Extensions")
 	extensionsFile := filepath.Join(extensionsDir, "Extensions.plist")
-	data, err := ioutil.ReadFile(extensionsFile)
+	data, err := os.ReadFile(extensionsFile)
 	if err != nil {
 		return fmt.Errorf("failed to read Extensions.plist: %v", err)
 	}

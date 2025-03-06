@@ -8,7 +8,6 @@ package modules
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -153,7 +152,7 @@ type DeletedUser struct {
 
 func getDeletedUsers() ([]DeletedUser, error) {
 	plistPath := "/Library/Preferences/com.apple.preferences.accounts.plist"
-	data, err := ioutil.ReadFile(plistPath)
+	data, err := os.ReadFile(plistPath)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +182,7 @@ func getDeletedUsers() ([]DeletedUser, error) {
 
 func getAdminUsers() ([]string, error) {
 	adminPlistPath := "/private/var/db/dslocal/nodes/Default/groups/admin.plist"
-	data, err := ioutil.ReadFile(adminPlistPath)
+	data, err := os.ReadFile(adminPlistPath)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +205,7 @@ func getAdminUsers() ([]string, error) {
 
 func getLastLoggedInUser() (string, error) {
 	loginPlistPath := "/Library/Preferences/com.apple.loginwindow.plist"
-	data, err := ioutil.ReadFile(loginPlistPath)
+	data, err := os.ReadFile(loginPlistPath)
 	if err != nil {
 		return "", err
 	}
@@ -231,7 +230,7 @@ type UserInfo struct {
 func getUserInfo(username string) (*UserInfo, error) {
 	// This would normally use dscl, but for forensics we'll read from the user plist
 	userPlistPath := fmt.Sprintf("/private/var/db/dslocal/nodes/Default/users/%s.plist", username)
-	data, err := ioutil.ReadFile(userPlistPath)
+	data, err := os.ReadFile(userPlistPath)
 	if err != nil {
 		return nil, err
 	}
