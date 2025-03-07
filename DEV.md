@@ -1,6 +1,6 @@
-# For Developers
+# 👨‍💻 For Developers
 
-## Project Structure
+## 📁 Project Structure
 
 The project is structured as follows:
 
@@ -22,12 +22,7 @@ ishinobu/
 - The `utils` package contains utility functions used by the application. 
 - The `main.go` file is the main entry point for the application.
 
-
-
-
-
-
-## How to run a module
+## ▶️ How to run a module
 ```go
 package main
 
@@ -46,7 +41,7 @@ func main() {
 	modules.RunModule("mymodule", params)
 }
 ```
-## CommandModule: A helper to run shell commands
+## 💻 CommandModule: A helper to run shell commands
 The `CommandModule` is a helper module that allows you to run shell commands and capture their output to specified by the user.
 1. Create a new `CommandModule` instance.
 2. Set the `ModuleName`, `Description`, `Command`, and `Args` fields.
@@ -62,7 +57,7 @@ cmdMod := &mod.CommandModule{
 cmdMod.Run(params)
 ```
 
-## How to write a module
+## ✏️ How to write a module
 1. Create a new file in the `modules` directory.
 2. Implement a struct that represents the module.
 3. Implement the `GetName` and `GetDescription` methods.
@@ -137,3 +132,110 @@ func (m *MyModule) Run(params mod.ModuleParams) error {
  return nil
 }
 ```
+
+## 🧪 Unit Testing Modules
+
+Each module should have corresponding unit tests to ensure it functions correctly. Tests are located in files named `modulename_test.go` alongside the module implementation.
+
+### 📝 How to Write a Module Test
+
+1. Create a test file named after the module (e.g., `users_test.go` for `users.go`)
+2. Test the basic module functions (`GetName`, `GetDescription`)
+3. Test the module initialization
+4. Test the module's `Run` method by mocking output and verifying results
+
+### 🏗️ Test Structure
+
+A typical module test file contains:
+
+1. **TestModuleBasics** - Tests for `GetName` and `GetDescription`
+2. **TestModuleInitialization** - Verifies proper module initialization
+3. **TestModuleRun** - Tests the main functionality by creating mock output
+4. **Helper functions** - For creating mock data and verifying output
+
+### 📋 Example Test Structure
+
+```go
+func TestUsersModule(t *testing.T) {
+    // Test GetName, GetDescription and Run method
+}
+
+func TestUsersModuleInitialization(t *testing.T) {
+    // Test proper module initialization
+}
+
+func createMockUsersOutput(t *testing.T, params mod.ModuleParams) {
+    // Create mock output for testing
+}
+
+func verifyUsersOutput(t *testing.T, outputFile string) {
+    // Verify the output file contains expected data
+}
+```
+
+### 🔄 Mocking Module Output
+
+Since many modules interact with the system (executing commands, reading files), tests should mock these operations to avoid dependencies on the test environment:
+
+```go
+// Create a mock output file
+outputFile := filepath.Join(params.OutputDir, "modulename-"+params.CollectionTimestamp+".json")
+
+// Create sample records
+records := []utils.Record{
+    // Sample records here
+}
+
+// Write records to output file
+file, err := os.Create(outputFile)
+encoder := json.NewEncoder(file)
+for _, record := range records {
+    encoder.Encode(record)
+}
+```
+
+### ✅ Verifying Module Output
+
+Tests should verify that the module output contains the expected data:
+
+```go
+// Read and parse the output file
+content, err := os.ReadFile(outputFile)
+lines := splitLines(content)
+
+// Verify the expected content is present
+for _, line := range lines {
+    var record map[string]interface{}
+    json.Unmarshal(line, &record)
+    
+    // Verify record fields
+    assert.NotEmpty(t, record["collection_timestamp"])
+    assert.NotEmpty(t, record["event_timestamp"])
+    // Check specific data fields
+}
+```
+
+### 🏃 Running Tests
+
+Run all module tests:
+```bash
+go test -v ./modules/...
+```
+
+Run a specific module test:
+```bash
+go test -v ./modules/users_test.go
+```
+
+### 💡 Best Practices
+
+1. **Use unique split functions**: When parsing output files, use unique split function names (e.g., `splitUsersLines`) to avoid conflicts
+2. **Clean up test files**: Use `defer os.RemoveAll(tmpDir)` to clean up temporary files
+3. **Test multiple scenarios**: For modules that handle different types of data, test all scenarios
+4. **Mock external dependencies**: Don't rely on actual system commands or files in tests
+
+### 🛠️ Common Test Helper Functions
+
+- **cleanupLogFiles**: Removes test log files
+- **createTestFileStructure**: Creates test directory structures
+- **splitLines**: Parses output files into lines for verification
