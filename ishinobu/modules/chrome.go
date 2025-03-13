@@ -20,6 +20,7 @@
 package modules
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -53,35 +54,40 @@ func (m *ChromeModule) GetDescription() string {
 func (m *ChromeModule) Run(params mod.ModuleParams) error {
 	locations, err := filepath.Glob("/Users/*/Library/Application Support/Google/Chrome")
 	if err != nil {
-		params.Logger.Debug("Error listing Chrome locations: %v", err)
+		params.Logger.Error("Error listing Chrome locations: %v", err)
 		return err
 	}
 
 	for _, location := range locations {
 		profilesDir, err := chromeProfiles(location, m.GetName(), params)
 		if err != nil {
-			params.Logger.Debug("Error when collecting Chrome profiles: %v", err)
+			params.Logger.Error("Error when collecting Chrome profiles: %v", err)
 		}
 
 		for _, profile := range profilesDir {
 			err = visitChromeHistory(location, profile, m.GetName(), params)
 			if err != nil {
-				params.Logger.Debug("Error when collecting visiting Chrome history: %v", err)
+				params.Logger.Error("Error when collecting visiting Chrome history: %v", err)
 			}
 
 			err = downloadsChromeHistory(location, profile, m.GetName(), params)
 			if err != nil {
-				params.Logger.Debug("Error when collecting downloads Chrome history: %v", err)
+				params.Logger.Error("Error when collecting downloads Chrome history: %v", err)
 			}
 
 			err = getChromeExtensions(location, profile, m.GetName(), params)
 			if err != nil {
-				params.Logger.Debug("Error when collecting Chrome extensions %v", err)
+				params.Logger.Error("Error when collecting Chrome extensions %v", err)
 			}
 
 			err = getPopupChromeSettings(location, profile, m.GetName(), params)
 			if err != nil {
-				params.Logger.Debug("Error when collecting Chrome popup settings %v", err)
+				params.Logger.Error("Error when collecting Chrome popup settings %v", err)
+			}
+
+			err = getExtensionDomains(location, profile, m.GetName(), params)
+			if err != nil {
+				params.Logger.Error("Error when collecting Chrome extension domains %v", err)
 			}
 		}
 	}
@@ -433,4 +439,265 @@ func getPopupChromeSettings(location string, profileUsr string, moduleName strin
 		}
 	}
 	return nil
+}
+
+func getExtensionDomains(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
+	params.Logger.Info("Running getExtensionDomains for profile: %s", profileUsr)
+
+	// Define possible paths to the Network State file - Chrome may store it in different locations
+	possiblePaths := []string{
+		filepath.Join(location, profileUsr, "Network", "Network Persistent State"),
+		filepath.Join(location, profileUsr, "Network Persistent State"),
+		filepath.Join(location, profileUsr, "Network", "Network State"),
+	}
+
+	// Check which path exists
+	var networkStatePath string
+	var exists bool
+
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			networkStatePath = path
+			exists = true
+			params.Logger.Info("Found Network State at: %s", path)
+			break
+		}
+	}
+
+	// If none of the paths exist, log a warning and return nil (not an error)
+	if !exists {
+		params.Logger.Info("Network State file not found for profile %s - this is normal for some Chrome versions", profileUsr)
+		return nil
+	}
+
+	// Setup the output file
+	outputFileName := utils.GetOutputFileName(moduleName+"-extension-domains-"+profileUsr, params.ExportFormat, params.OutputDir)
+	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
+	if err != nil {
+		params.Logger.Error("Failed to create data writer: %v", err)
+		return err
+	}
+
+	// Read the Network State file as JSON
+	data, err := os.ReadFile(networkStatePath)
+	if err != nil {
+		params.Logger.Error("Failed to read Network State file: %v", err)
+		return nil
+	}
+
+	// Parse JSON data
+	var networkState map[string]interface{}
+	if err := json.Unmarshal(data, &networkState); err != nil {
+		params.Logger.Error("Failed to parse Network State JSON: %v", err)
+		return nil
+	}
+
+	connections := []map[string]interface{}{}
+
+	// Process the data in "net" -> "http_server_properties" section
+	if netData, ok := networkState["net"].(map[string]interface{}); ok {
+		if httpProps, ok := netData["http_server_properties"].(map[string]interface{}); ok {
+			// Process active connections
+			if servers, ok := httpProps["servers"].([]interface{}); ok {
+				for _, serverInterface := range servers {
+					server, ok := serverInterface.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					// Process anonymization data (extension IDs)
+					anonymizationArray, ok := server["anonymization"].([]interface{})
+					if !ok || len(anonymizationArray) == 0 {
+						continue
+					}
+
+					// Decode the anonymization data to get extension ID
+					extID := decodeAnonymization(fmt.Sprintf("%v", anonymizationArray[0]))
+					if extID == "" {
+						continue
+					}
+
+					// Extract domain from server field
+					serverStr, ok := server["server"].(string)
+					if !ok {
+						continue
+					}
+
+					domain := cleanServerURL(serverStr)
+
+					// Get timestamp using the standard utils.ParseChromeTimestamp function
+					var timestamp string
+					if spdy, ok := server["supports_spdy"].(float64); ok {
+						// Convert to string first as utils.ParseChromeTimestamp expects a string
+						spdyStr := fmt.Sprintf("%d", int64(spdy))
+						timestamp = utils.ParseChromeTimestamp(spdyStr)
+						if timestamp == "" {
+							timestamp = params.CollectionTimestamp
+						}
+					} else {
+						timestamp = params.CollectionTimestamp
+					}
+
+					// Get extension name
+					extensionName, err := getExtensionName(location, profileUsr, extID)
+					if err != nil {
+						extensionName = extID
+					}
+
+					// Create record
+					recordData := map[string]interface{}{
+						"profile":              profileUsr,
+						"extension_id":         extID,
+						"extension_name":       extensionName,
+						"domain":               domain,
+						"connection_type":      "Active",
+						"last_connection_time": timestamp,
+					}
+
+					connections = append(connections, recordData)
+				}
+			}
+
+			// Process broken connections
+			if broken, ok := httpProps["broken_alternative_services"].([]interface{}); ok {
+				for _, brokenInterface := range broken {
+					brokenConn, ok := brokenInterface.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					// Process anonymization data (extension IDs)
+					anonymizationArray, ok := brokenConn["anonymization"].([]interface{})
+					if !ok || len(anonymizationArray) == 0 {
+						continue
+					}
+
+					// Decode the anonymization data to get extension ID
+					extID := decodeAnonymization(fmt.Sprintf("%v", anonymizationArray[0]))
+					if extID == "" {
+						continue
+					}
+
+					// Extract domain from host field
+					host, ok := brokenConn["host"].(string)
+					if !ok {
+						continue
+					}
+
+					// Get timestamp using the standard utils.ParseChromeTimestamp function
+					var timestamp string
+					if brokenUntil, ok := brokenConn["broken_until"].(float64); ok {
+						// Convert to string first as utils.ParseChromeTimestamp expects a string
+						params.Logger.Info("brokenUntil: %v", brokenUntil)
+						brokenUntilStr := fmt.Sprintf("%d", int64(brokenUntil))
+						timestamp = utils.ParseChromeTimestamp(brokenUntilStr)
+						if timestamp == "" {
+							timestamp = params.CollectionTimestamp
+						}
+					} else {
+						timestamp = params.CollectionTimestamp
+					}
+
+					// Get extension name
+					extensionName, err := getExtensionName(location, profileUsr, extID)
+					if err != nil {
+						extensionName = extID
+					}
+
+					// Create record
+					recordData := map[string]interface{}{
+						"profile":              profileUsr,
+						"extension_id":         extID,
+						"extension_name":       extensionName,
+						"domain":               host,
+						"connection_type":      "Broken",
+						"last_connection_time": timestamp,
+					}
+
+					connections = append(connections, recordData)
+				}
+			}
+		}
+	}
+
+	// Write all connections to the output file
+	for _, connData := range connections {
+		record := utils.Record{
+			CollectionTimestamp: params.CollectionTimestamp,
+			EventTimestamp:      connData["last_connection_time"].(string),
+			Data:                connData,
+			SourceFile:          networkStatePath,
+		}
+
+		err = writer.WriteRecord(record)
+		if err != nil {
+			params.Logger.Error("Failed to write record: %v", err)
+		}
+	}
+
+	params.Logger.Info("getExtensionDomains completed for profile %s, found %d connection records",
+		profileUsr, len(connections))
+
+	return nil
+}
+
+// Helper function to decode the anonymization string to extract extension ID
+func decodeAnonymization(anonStr string) string {
+	decoded, err := base64.StdEncoding.DecodeString(anonStr)
+	if err != nil {
+		return ""
+	}
+
+	decodedStr := string(decoded)
+	if strings.Contains(decodedStr, "chrome-extension://") {
+		parts := strings.Split(decodedStr, "chrome-extension://")
+		if len(parts) > 1 {
+			return parts[1]
+		}
+	}
+
+	return ""
+}
+
+// Helper function to clean server URL and extract domain
+func cleanServerURL(serverURL string) string {
+	domain := strings.Replace(serverURL, "https://", "", 1)
+	domain = strings.Replace(domain, "http://", "", 1)
+
+	// Split on colon to remove port number if present
+	parts := strings.Split(domain, ":")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+
+	return domain
+}
+
+// Helper function to get the extension name from its ID
+func getExtensionName(location string, profileUsr string, extensionID string) (string, error) {
+	// Try to find the manifest file for this extension
+	manifestPath := filepath.Join(location, profileUsr, "Extensions", extensionID, "*", "manifest.json")
+	manifestFiles, err := utils.ListFiles(manifestPath)
+	if err != nil || len(manifestFiles) == 0 {
+		return extensionID, fmt.Errorf("manifest not found for extension: %s", extensionID)
+	}
+
+	// Read manifest file
+	data, err := os.ReadFile(manifestFiles[0])
+	if err != nil {
+		return extensionID, err
+	}
+
+	// Parse JSON
+	var manifest map[string]interface{}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return extensionID, err
+	}
+
+	// Get name
+	if name, ok := manifest["name"].(string); ok {
+		return name, nil
+	}
+
+	return extensionID, nil
 }
