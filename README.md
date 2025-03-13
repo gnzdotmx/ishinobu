@@ -54,7 +54,7 @@ The application supports a timeout for each module.
 - **📱 appstore**: Collects App Store installation history and receipt information.
 - **📜 asl**: Collects and parses logs from Apple System Logs (ASL).
 - **🔍 auditlogs**: Collects information from the macOS audit logs.
-- **🌐 chrome**: Collects and parses chrome history, downloads, extensions, popup settings, and profiles.
+- **🌐 chrome**: Collects and parses chrome history, downloads, extensions, accessed domains by extensions, popup settings, and profiles.
 - **📊 coreanalytics**: Collects and parses coreanalytics data.
 - **🦊 firefox**: Collects and parses Firefox browser history, downloads, and extensions.
 - **📂 listfiles**: Collects metadata for files and folders on disk (Warning: This module can take a while to complete based on the amount of files in the system).
