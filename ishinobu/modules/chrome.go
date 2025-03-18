@@ -299,18 +299,42 @@ func chromeProfiles(location string, moduleName string, params mod.ModuleParams)
 		recordData := make(map[string]interface{})
 		recordData["os_user_name"] = userProfile
 		recordData["profile_directory"] = profileDir
-		recordData["name"] = profileInfo["name"].(string)
-		recordData["user_name"] = profileInfo["user_name"].(string)
-		recordData["gaia_name"] = profileInfo["gaia_name"].(string)
-		recordData["gaia_given_name"] = profileInfo["gaia_given_name"].(string)
-		recordData["gaia_id"] = profileInfo["gaia_id"].(string)
-		recordData["is_consented_primary_account"] = fmt.Sprintf("%t", profileInfo["is_consented_primary_account"].(bool))
-		recordData["is_ephemeral"] = fmt.Sprintf("%t", profileInfo["is_ephemeral"].(bool))
-		recordData["is_using_default_name"] = fmt.Sprintf("%t", profileInfo["is_using_default_name"].(bool))
-		recordData["avatar_icon"] = profileInfo["avatar_icon"].(string)
-		recordData["background_apps_enabled"] = fmt.Sprintf("%t", profileInfo["background_apps"].(bool))
-		recordData["gaia_picture_file_name"] = profileInfo["gaia_picture_file_name"].(string)
-		recordData["metrics_bucket_index"] = fmt.Sprintf("%v", profileInfo["metrics_bucket_index"].(float64))
+		if name, ok := profileInfo["name"].(string); ok {
+			recordData["name"] = name
+		}
+		if userName, ok := profileInfo["user_name"].(string); ok {
+			recordData["user_name"] = userName
+		}
+		if gaiaName, ok := profileInfo["gaia_name"].(string); ok {
+			recordData["gaia_name"] = gaiaName
+		}
+		if gaiaGivenName, ok := profileInfo["gaia_given_name"].(string); ok {
+			recordData["gaia_given_name"] = gaiaGivenName
+		}
+		if gaiaID, ok := profileInfo["gaia_id"].(string); ok {
+			recordData["gaia_id"] = gaiaID
+		}
+		if isConsentedPrimaryAccount, ok := profileInfo["is_consented_primary_account"].(bool); ok {
+			recordData["is_consented_primary_account"] = fmt.Sprintf("%t", isConsentedPrimaryAccount)
+		}
+		if isEphemeral, ok := profileInfo["is_ephemeral"].(bool); ok {
+			recordData["is_ephemeral"] = fmt.Sprintf("%t", isEphemeral)
+		}
+		if isUsingDefaultName, ok := profileInfo["is_using_default_name"].(bool); ok {
+			recordData["is_using_default_name"] = fmt.Sprintf("%t", isUsingDefaultName)
+		}
+		if avatarIcon, ok := profileInfo["avatar_icon"].(string); ok {
+			recordData["avatar_icon"] = avatarIcon
+		}
+		if backgroundAppsEnabled, ok := profileInfo["background_apps"].(bool); ok {
+			recordData["background_apps_enabled"] = fmt.Sprintf("%t", backgroundAppsEnabled)
+		}
+		if gaiaPictureFileName, ok := profileInfo["gaia_picture_file_name"].(string); ok {
+			recordData["gaia_picture_file_name"] = gaiaPictureFileName
+		}
+		if metricsBucketIndex, ok := profileInfo["metrics_bucket_index"].(float64); ok {
+			recordData["metrics_bucket_index"] = fmt.Sprintf("%v", metricsBucketIndex)
+		}
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
@@ -361,16 +385,36 @@ func getChromeExtensions(location string, profileUsr string, moduleName string, 
 		}
 
 		recordData := make(map[string]interface{})
-		recordData["name"] = manifest["name"]
-		recordData["version"] = manifest["version"]
-		recordData["author"] = manifest["author"]
-		recordData["description"] = manifest["description"]
-		recordData["permissions"] = manifest["permissions"]
-		recordData["scripts"] = manifest["scripts"]
-		recordData["persistent"] = manifest["persistent"]
-		recordData["scopes"] = manifest["scopes"]
-		recordData["update_url"] = manifest["update_url"]
-		recordData["default_locale"] = manifest["default_locale"]
+		if name, ok := manifest["name"].(string); ok {
+			recordData["name"] = name
+		}
+		if version, ok := manifest["version"].(string); ok {
+			recordData["version"] = version
+		}
+		if author, ok := manifest["author"].(string); ok {
+			recordData["author"] = author
+		}
+		if description, ok := manifest["description"].(string); ok {
+			recordData["description"] = description
+		}
+		if permissions, ok := manifest["permissions"].([]interface{}); ok {
+			recordData["permissions"] = permissions
+		}
+		if scripts, ok := manifest["scripts"].([]interface{}); ok {
+			recordData["scripts"] = scripts
+		}
+		if persistent, ok := manifest["persistent"].(bool); ok {
+			recordData["persistent"] = persistent
+		}
+		if scopes, ok := manifest["scopes"].([]interface{}); ok {
+			recordData["scopes"] = scopes
+		}
+		if updateURL, ok := manifest["update_url"].(string); ok {
+			recordData["update_url"] = updateURL
+		}
+		if defaultLocale, ok := manifest["default_locale"].(string); ok {
+			recordData["default_locale"] = defaultLocale
+		}
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,

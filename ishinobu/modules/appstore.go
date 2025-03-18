@@ -182,8 +182,13 @@ func collectAppReceipts(moduleName string, params mod.ModuleParams) error {
 				continue
 			}
 
-			bundleID, _ := plistData["CFBundleIdentifier"].(string)
-			version, _ := plistData["CFBundleShortVersionString"].(string)
+			var bundleID, version string
+			if val, ok := plistData["CFBundleIdentifier"].(string); ok {
+				bundleID = val
+			}
+			if val, ok := plistData["CFBundleShortVersionString"].(string); ok {
+				version = val
+			}
 
 			// Get receipt metadata (not the actual receipt content)
 			receiptInfo, err := os.Stat(receiptPath)
@@ -250,11 +255,21 @@ func collectStoreConfiguration(moduleName string, params mod.ModuleParams) error
 
 			recordData := make(map[string]interface{})
 			recordData["username"] = username
-			recordData["automatic_downloads"] = plistData["AutomaticDownloadEnabled"]
-			recordData["automatic_updates"] = plistData["AutomaticUpdateEnabled"]
-			recordData["free_downloads_require_password"] = plistData["FreeDownloadsRequirePassword"]
-			recordData["last_update_check"] = plistData["LastUpdateCheck"]
-			recordData["password_settings"] = plistData["PasswordSetting"]
+			if automaticDownloads, ok := plistData["AutomaticDownloadEnabled"].(bool); ok {
+				recordData["automatic_downloads"] = automaticDownloads
+			}
+			if automaticUpdates, ok := plistData["AutomaticUpdateEnabled"].(bool); ok {
+				recordData["automatic_updates"] = automaticUpdates
+			}
+			if freeDownloadsRequirePassword, ok := plistData["FreeDownloadsRequirePassword"].(bool); ok {
+				recordData["free_downloads_require_password"] = freeDownloadsRequirePassword
+			}
+			if lastUpdateCheck, ok := plistData["LastUpdateCheck"].(string); ok {
+				recordData["last_update_check"] = lastUpdateCheck
+			}
+			if passwordSettings, ok := plistData["PasswordSetting"].(string); ok {
+				recordData["password_settings"] = passwordSettings
+			}
 
 			// Get file modification time for timestamp
 			fileInfo, err := os.Stat(path)
