@@ -36,6 +36,12 @@ Locate `ishinobu` binary in the target host and execute it as root.
 ```bash
 sudo ./ishinobu -m all -e json -p 4 -v 1 -t 60
 ```
+
+For cross-compilation from Mx Chips to Intel Macs, use the following command:
+```bash
+GOOS=darwin GOARCH=amd64 go build -o ishinobu -ldflags -s main.go
+```
+
 ### 📊 Verbosity Levels
 
 The application supports two verbosity levels:
