@@ -88,13 +88,29 @@ func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 
 			recordData["delivered_date"] = delivered_date
 			recordData["date"] = parsedDate
-			recordData["app"] = plistData["app"]
-			recordData["cate"] = plistData["req"].(map[string]interface{})["cate"]
-			recordData["durl"] = plistData["req"].(map[string]interface{})["durl"]
-			recordData["iden"] = plistData["req"].(map[string]interface{})["iden"]
-			recordData["title"] = plistData["req"].(map[string]interface{})["titl"]
-			recordData["subtitle"] = plistData["req"].(map[string]interface{})["subt"]
-			recordData["body"] = plistData["req"].(map[string]interface{})["body"]
+			if app, ok := plistData["app"].(string); ok {
+				recordData["app"] = app
+			}
+			if req, ok := plistData["req"].(map[string]interface{}); ok {
+				if cate, ok := req["cate"].(string); ok {
+					recordData["cate"] = cate
+				}
+				if durl, ok := req["durl"].(string); ok {
+					recordData["durl"] = durl
+				}
+				if iden, ok := req["iden"].(string); ok {
+					recordData["iden"] = iden
+				}
+				if titl, ok := req["titl"].(string); ok {
+					recordData["title"] = titl
+				}
+				if subt, ok := req["subt"].(string); ok {
+					recordData["subtitle"] = subt
+				}
+				if body, ok := req["body"].(string); ok {
+					recordData["body"] = body
+				}
+			}
 
 			record := utils.Record{
 				CollectionTimestamp: params.CollectionTimestamp,
