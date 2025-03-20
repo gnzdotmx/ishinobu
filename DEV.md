@@ -6,29 +6,36 @@ The project is structured as follows:
 
 ```
 ishinobu/
-├── cmd/
-│   └── cmd.go
-├── modules/
-│   ├── ps.go
-│   ├── unifiedlogs.go
-│   └── nettop.go
-├── utils/
-│   └── logger.go
-└── main.go
+├── cmd
+│   ├── ishinobu
+│   └── ...
+├── pkg
+│   ├── bundles
+│   │   ├── full
+│   │   └── ...
+│   ├── cmd
+│   ├── mod
+│   ├── modules
+│   │   ├── appstore
+│   │   ├── asl
+│   │   ├── auditLog
+│   │   └── ...
+│   └── utils
 ```
 
-- The `cmd` package contains the main entry point for the application. 
-- The `modules` package contains the modules that can be run by the application. 
-- The `utils` package contains utility functions used by the application. 
-- The `main.go` file is the main entry point for the application.
+- The `pkg/bundles` contains packages pre-bundling modules for easy import in application entry points. 
+- The `pkg/cmd` package contains the root command for the application. 
+- The `pkg/modules` package contains the modules that can be run by the application. 
+- The `pkg/utils` package contains utility functions used by the application. 
+- The `cmd` package contains various application main entry points with pre-bundled modules. Use `cmd/ishinobu` for an executable with all native modules.
 
 ## ▶️ How to run a module
 ```go
 package main
 
 import (
-	"github.com/gnzdotmx/ishinobu/ishinobu/mod"
-	"github.com/gnzdotmx/ishinobu/ishinobu/modules"
+	"github.com/gnzdotmx/ishinobu/pkg/mod"
+	"github.com/gnzdotmx/ishinobu/pkg/modules/mymodule"
 )
 
 func main() {
@@ -58,18 +65,18 @@ cmdMod.Run(params)
 ```
 
 ## ✏️ How to write a module
-1. Create a new file in the `modules` directory.
+1. Create a new package in the `modules` directory.
 2. Implement a struct that represents the module.
 3. Implement the `GetName` and `GetDescription` methods.
 4. Implement the `Run` method.
 Example:
 ```go
-package modules
+package mymodule
 
 import (
 	"fmt"
 
-	"github.com/gnzdotmx/ishinobu/ishinobu/mod"
+	"github.com/gnzdotmx/ishinobu/pkg/mod"
 )
 
 type MyModule struct {
@@ -98,38 +105,38 @@ func (m *MyModule) Run(params mod.ModuleParams) error {
 	headers := []string{"field1", "field2", "field3"}
 	data := [][]string{{"value1", "value2", "value3"}}
  
- // Prepare the output file
+ 	// Prepare the output file
 	outputFileName := utils.GetOutputFileName(m.GetName(), params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-   return fmt.Errorf("failed to create data writer: %v", err)
- }
- defer writer.Close()
+   		return fmt.Errorf("failed to create data writer: %v", err)
+ 	}
+ 	defer writer.Close()
  
- // Create a record per data row
- for _, row := range data {
-   recordData := make(map[string]string)
-   for i, field := range headers {
-     recordData[field] = row[i]
-   }
-   
- // Prepare the record. 
- // Do not forget to specify the event timestamp if exists. Otherwise, set to the current time.
- // Set a source to identify the module that generated the record.
- record := utils.Record{
-     CollectionTimestamp: params.CollectionTimestamp,
-     EventTimestamp:      utils.Now(),
-     Data:                data,
-     Source:              "mymodule",
-   }
-   // Write the record
-   err := writer.Write(record)
-   if err != nil {
-     params.Logger.Debug("failed to write record: %v", err)
-     return fmt.Errorf("failed to write record: %v", err)
-   }
- }
- return nil
+	// Create a record per data row
+	for _, row := range data {
+	recordData := make(map[string]string)
+	for i, field := range headers {
+		recordData[field] = row[i]
+	}
+	
+	// Prepare the record. 
+	// Do not forget to specify the event timestamp if exists. Otherwise, set to the current time.
+	// Set a source to identify the module that generated the record.
+	record := utils.Record{
+		CollectionTimestamp: params.CollectionTimestamp,
+		EventTimestamp:      utils.Now(),
+		Data:                data,
+		Source:              "mymodule",
+	}
+	// Write the record
+	err := writer.Write(record)
+	if err != nil {
+		params.Logger.Debug("failed to write record: %v", err)
+		return fmt.Errorf("failed to write record: %v", err)
+	}
+	}
+	return nil
 }
 ```
 
@@ -201,7 +208,7 @@ Tests should verify that the module output contains the expected data:
 ```go
 // Read and parse the output file
 content, err := os.ReadFile(outputFile)
-lines := splitLines(content)
+lines := testutils.SplitLines(content)
 
 // Verify the expected content is present
 for _, line := range lines {
@@ -219,23 +226,23 @@ for _, line := range lines {
 
 Run all module tests:
 ```bash
-go test -v ./modules/...
+go test -v ./pkg/modules/...
 ```
 
 Run a specific module test:
 ```bash
-go test -v ./modules/users_test.go
+go test -v ./pkg/modules/users/
 ```
 
 ### 💡 Best Practices
 
-1. **Use unique split functions**: When parsing output files, use unique split function names (e.g., `splitUsersLines`) to avoid conflicts
-2. **Clean up test files**: Use `defer os.RemoveAll(tmpDir)` to clean up temporary files
-3. **Test multiple scenarios**: For modules that handle different types of data, test all scenarios
-4. **Mock external dependencies**: Don't rely on actual system commands or files in tests
+1. **Clean up test files**: Use `defer os.RemoveAll(tmpDir)` to clean up temporary files
+2. **Test multiple scenarios**: For modules that handle different types of data, test all scenarios
+3. **Mock external dependencies**: Don't rely on actual system commands or files in tests
 
 ### 🛠️ Common Test Helper Functions
 
-- **cleanupLogFiles**: Removes test log files
-- **createTestFileStructure**: Creates test directory structures
-- **splitLines**: Parses output files into lines for verification
+Common test helper functions are available in the `pkg/modules/testutils` package:
+
+- **WriteTestRecords**: Writes test records to an output file
+- **SplitLines**: Parses output files into lines for verification
