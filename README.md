@@ -20,20 +20,20 @@ Once logs are collected in a JSON format, you can use [ishinobu2elk](https://git
 Compile and execute the `ishinobu` binary in the target machine.
 ```bash
 git clone https://github.com/gnzdotmx/ishinobu.git
-cd ishinobu/ishinobu
-go build -o ishinobu main.go
+cd ishinobu
+go build -o ishinobu cmd/ishinobu/main.go
 ```
 
 For cross-compilation from `Mx` Chips to Intel Macs, use the following command:
 ```bash
-GOOS=darwin GOARCH=amd64 go build -o ishinobu -ldflags -s main.go
+GOOS=darwin GOARCH=amd64 go build -o ishinobu -ldflags -s cmd/ishinobu/main.go
 ```
 
 ### 🔍 Troubleshooting
 If the previous `ishinobu` binary is killed by the system, include `-ldflags -s` when building the binary. 
 By default on Darwin the linker will invoke dsymutil to put the debug info directly into the executable. This invocation of dsymutil is disabled by the linker's -s option.
 ```
-go build -o ishinobu -ldflags -s main.go
+go build -o ishinobu -ldflags -s cmd/ishinobu/main.go
 ```
 
 ## 🚀 Usage
