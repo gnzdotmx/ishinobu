@@ -25,7 +25,6 @@ jobs:
 
   lint:
     name: Go Lint
-    needs: test
     runs-on: macos-latest
     steps:
       - name: Checkout
