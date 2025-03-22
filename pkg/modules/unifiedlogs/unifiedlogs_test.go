@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestUnifiedLogsModule(t *testing.T) {
@@ -197,7 +198,9 @@ func verifyUnifiedLogsOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "unifiedlogs")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "unifiedlogs")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})
@@ -212,13 +215,13 @@ func verifyUnifiedLogsOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific log content
-	content_str := string(content)
-	assert.Contains(t, content_str, "sudo")
-	assert.Contains(t, content_str, "sshd")
-	assert.Contains(t, content_str, "securityd")
-	assert.Contains(t, content_str, "TTY=ttys001")
-	assert.Contains(t, content_str, "Accepted publickey")
-	assert.Contains(t, content_str, "session created")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "sudo")
+	assert.Contains(t, contentStr, "sshd")
+	assert.Contains(t, contentStr, "securityd")
+	assert.Contains(t, contentStr, "TTY=ttys001")
+	assert.Contains(t, contentStr, "Accepted publickey")
+	assert.Contains(t, contentStr, "session created")
 }
 
 // Helper function to split content into lines

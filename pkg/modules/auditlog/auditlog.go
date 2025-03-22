@@ -6,7 +6,7 @@
 // - Msec
 // - Arg-num
 // - Value
-package auditLog
+package auditlog
 
 import (
 	"bufio"

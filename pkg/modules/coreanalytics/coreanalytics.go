@@ -54,7 +54,7 @@ func (m *CoreAnalyticsModule) GetDescription() string {
 func getMacOSVersion() (string, error) {
 	out, err := utils.ExecuteCommand("sw_vers", "-productVersion")
 	if err != nil {
-		return "", fmt.Errorf("failed to get macOS version: %v", err)
+		return "", fmt.Errorf("failed to get macOS version: %w", err)
 	}
 	return strings.TrimSpace(out), nil
 }

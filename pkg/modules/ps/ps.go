@@ -44,7 +44,7 @@ func (m *ProcessListModule) Run(params mod.ModuleParams) error {
 	err := cmdMod.Run(params)
 	if err != nil {
 		params.Logger.Debug("error running command: %v", err)
-		return fmt.Errorf("error running command: %v", err)
+		return fmt.Errorf("error running command: %w", err)
 	}
 
 	return nil

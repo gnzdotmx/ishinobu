@@ -273,13 +273,15 @@ func collectStoreConfiguration(moduleName string, params mod.ModuleParams) error
 
 			// Get file modification time for timestamp
 			fileInfo, err := os.Stat(path)
+			lastModified := ""
 			if err == nil {
-				recordData["last_modified"] = fileInfo.ModTime().Format(utils.TimeFormat)
+				lastModified = fileInfo.ModTime().Format(utils.TimeFormat)
+				recordData["last_modified"] = lastModified
 			}
 
 			record := utils.Record{
 				CollectionTimestamp: params.CollectionTimestamp,
-				EventTimestamp:      recordData["last_modified"].(string),
+				EventTimestamp:      lastModified,
 				Data:                recordData,
 				SourceFile:          path,
 			}

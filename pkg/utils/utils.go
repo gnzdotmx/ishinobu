@@ -2,8 +2,6 @@ package utils
 
 import (
 	"bytes"
-	"errors"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,7 +39,7 @@ func ListFiles(pattern string) ([]string, error) {
 			matches = append(matches, matched...)
 		}
 		if len(matches) == 0 {
-			return nil, errors.New("no matches found")
+			return nil, errNoMatchesFound
 		}
 		roots = matches
 	}
@@ -86,12 +84,12 @@ func GetUsernameFromPath(path string) string {
 
 func CopyFile(src, dst string) error {
 	// Read all content of src to data, may cause OOM for a large file.
-	data, err := ioutil.ReadFile(src)
+	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
 	// Write data to dst
-	err = ioutil.WriteFile(dst, data, 0644)
+	err = os.WriteFile(dst, data, 0600)
 	if err != nil {
 		return err
 	}
@@ -103,7 +101,7 @@ func CopyFile(src, dst string) error {
 // Returns a string containing the signature information or an error if verification fails.
 func GetCodeSignature(program string) (string, error) {
 	if program == "" {
-		return "", errors.New("empty program path")
+		return "", errEmptyProgramPath
 	}
 
 	// Run codesign -vv -d on the program

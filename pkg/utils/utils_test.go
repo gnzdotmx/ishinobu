@@ -61,7 +61,7 @@ func TestListFiles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(path, []byte("test"), 0644)
+		err = os.WriteFile(path, []byte("test"), 0600)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -151,7 +151,7 @@ func TestCopyFile(t *testing.T) {
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "source.txt")
 	content := []byte("test content")
-	err = os.WriteFile(srcPath, content, 0644)
+	err = os.WriteFile(srcPath, content, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}

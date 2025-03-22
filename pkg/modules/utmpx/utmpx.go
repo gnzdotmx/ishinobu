@@ -99,6 +99,8 @@ func (m *UtmpxModule) Run(params mod.ModuleParams) error {
 			hostname = "localhost"
 		}
 
+		eventTimestamp := timestamp.Format(utils.TimeFormat)
+
 		// Create record data
 		recordData := map[string]interface{}{
 			"user":          string(bytes.TrimRight(record.User[:], "\x00")),
@@ -106,14 +108,14 @@ func (m *UtmpxModule) Run(params mod.ModuleParams) error {
 			"terminal_type": string(bytes.TrimRight(record.TerminalType[:], "\x00")),
 			"pid":           record.Pid,
 			"logon_type":    decodeLogonType(record.LogonType),
-			"timestamp":     timestamp.Format(utils.TimeFormat),
+			"timestamp":     eventTimestamp,
 			"hostname":      hostname,
 		}
 
 		// Write the record
 		outputRecord := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["timestamp"].(string),
+			EventTimestamp:      eventTimestamp,
 			Data:                recordData,
 			SourceFile:          utmpxPath,
 		}

@@ -6,7 +6,7 @@
 package listfiles
 
 import (
-	"crypto/md5"
+	"crypto/md5" // #nosec G501
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -313,7 +313,7 @@ func calculateHashes(path string) (string, string, error) {
 	}
 	defer file.Close()
 
-	md5Hash := md5.New()
+	md5Hash := md5.New() // #nosec G401
 	sha256Hash := sha256.New()
 	multiWriter := io.MultiWriter(md5Hash, sha256Hash)
 

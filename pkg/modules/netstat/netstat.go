@@ -45,7 +45,7 @@ func (m *NetstatModule) Run(params mod.ModuleParams) error {
 
 	err := cmdMod.Run(params)
 	if err != nil {
-		return fmt.Errorf("error running command: %v", err)
+		return fmt.Errorf("error running command: %w", err)
 	}
 
 	return nil

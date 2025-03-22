@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestLsofModule(t *testing.T) {
@@ -124,7 +125,7 @@ func createMockLsofOutput(t *testing.T, params mod.ModuleParams) {
 		]
 	}`
 
-	err := os.WriteFile(outputFile, []byte(mockData), 0644)
+	err := os.WriteFile(outputFile, []byte(mockData), 0600)
 	assert.NoError(t, err)
 }
 

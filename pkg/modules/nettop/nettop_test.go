@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNettopModule(t *testing.T) {
@@ -180,11 +181,12 @@ func verifyNettopOutput(t *testing.T, outputFile string) {
 
 		// Track which processes and interfaces we found
 		process, _ := data["process"].(string)
-		if process == "chrome" {
+		switch process {
+		case "chrome":
 			foundChrome = true
-		} else if process == "firefox" {
+		case "firefox":
 			foundFirefox = true
-		} else if process == "postgres" {
+		case "postgres":
 			foundPostgres = true
 		}
 

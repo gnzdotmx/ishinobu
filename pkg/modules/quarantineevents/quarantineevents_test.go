@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestQuarantineEventsModule(t *testing.T) {
@@ -173,7 +174,10 @@ func verifyQuarantineEventsOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "QuarantineEventsV2")
+
+		sourceFileStr, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFileStr, "QuarantineEventsV2")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})
@@ -188,12 +192,12 @@ func verifyQuarantineEventsOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific event content
-	content_str := string(content)
-	assert.Contains(t, content_str, "com.google.Chrome")
-	assert.Contains(t, content_str, "com.apple.Safari")
-	assert.Contains(t, content_str, "https://example.com/download/file.dmg")
-	assert.Contains(t, content_str, "https://test.org/software/app.pkg")
-	assert.Contains(t, content_str, "jane@example.com")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "com.google.Chrome")
+	assert.Contains(t, contentStr, "com.apple.Safari")
+	assert.Contains(t, contentStr, "https://example.com/download/file.dmg")
+	assert.Contains(t, contentStr, "https://test.org/software/app.pkg")
+	assert.Contains(t, contentStr, "jane@example.com")
 }
 
 // Helper to split content into lines (handles different line endings)

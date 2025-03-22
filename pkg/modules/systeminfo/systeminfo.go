@@ -66,29 +66,7 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 
 	// Add global preferences data
 	if globalPrefs != nil {
-		// Get system appearance (Dark/Light mode)
-		if appearance, ok := globalPrefs["AppleInterfaceStyle"].(string); ok {
-			recordData["system_appearance"] = appearance
-		} else {
-			recordData["system_appearance"] = "Light"
-		}
-
-		// Get system language
-		if language, ok := globalPrefs["AppleLanguages"].([]interface{}); ok && len(language) > 0 {
-			if primaryLang, ok := language[0].(string); ok {
-				recordData["system_language"] = primaryLang
-			}
-		}
-
-		// Get system locale
-		if locale, ok := globalPrefs["AppleLocale"].(string); ok {
-			recordData["system_locale"] = locale
-		}
-
-		// Get system keyboard layout
-		if keyboard, ok := globalPrefs["AppleKeyboardLayout"].(string); ok {
-			recordData["keyboard_layout"] = keyboard
-		}
+		processGlobalPrefs(globalPrefs, recordData)
 	}
 
 	systemConfigFile, err := os.ReadFile(systemConfigPath)
@@ -184,4 +162,30 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 	}
 
 	return writer.WriteRecord(record)
+}
+
+func processGlobalPrefs(globalPrefs map[string]interface{}, recordData map[string]interface{}) {
+	// Get system appearance (Dark/Light mode)
+	if appearance, ok := globalPrefs["AppleInterfaceStyle"].(string); ok {
+		recordData["system_appearance"] = appearance
+	} else {
+		recordData["system_appearance"] = "Light"
+	}
+
+	// Get system language
+	if language, ok := globalPrefs["AppleLanguages"].([]interface{}); ok && len(language) > 0 {
+		if primaryLang, ok := language[0].(string); ok {
+			recordData["system_language"] = primaryLang
+		}
+	}
+
+	// Get system locale
+	if locale, ok := globalPrefs["AppleLocale"].(string); ok {
+		recordData["system_locale"] = locale
+	}
+
+	// Get system keyboard layout
+	if keyboard, ok := globalPrefs["AppleKeyboardLayout"].(string); ok {
+		recordData["keyboard_layout"] = keyboard
+	}
 }

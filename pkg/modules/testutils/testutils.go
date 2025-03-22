@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gnzdotmx/ishinobu/pkg/utils"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 
 // WriteTestRecord writes a test record to a file
@@ -18,14 +19,17 @@ func WriteTestRecord(t *testing.T, filepath string, record utils.Record) {
 		"source_file":          record.SourceFile,
 	}
 
-	for k, v := range record.Data.(map[string]interface{}) {
+	recordMap, ok := record.Data.(map[string]interface{})
+	assert.True(t, ok, "Record data should be a map")
+
+	for k, v := range recordMap {
 		jsonRecord[k] = v
 	}
 
 	data, err := json.MarshalIndent(jsonRecord, "", "  ")
 	assert.NoError(t, err)
 
-	err = os.WriteFile(filepath, data, 0644)
+	err = os.WriteFile(filepath, data, 0600)
 	assert.NoError(t, err)
 }
 

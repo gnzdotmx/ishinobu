@@ -14,6 +14,7 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +79,7 @@ func (m *TerminalModule) collectTerminalState(params mod.ModuleParams) error {
 	}
 
 	// Create a map to store writers for each user
-	writers := make(map[string]*utils.DataWriter)
+	writers := make(map[string]utils.DataWriter)
 
 	for _, location := range locations {
 		username := utils.GetUsernameFromPath(location)
@@ -116,7 +117,7 @@ func (m *TerminalModule) collectTerminalHistory(params mod.ModuleParams) error {
 	}
 
 	// Create a map to store writers for each user
-	writers := make(map[string]*utils.DataWriter)
+	writers := make(map[string]utils.DataWriter)
 
 	for _, path := range expandedPaths {
 		username := utils.GetUsernameFromPath(path)
@@ -175,7 +176,7 @@ func (m *TerminalModule) collectTerminalHistory(params mod.ModuleParams) error {
 	return nil
 }
 
-func processTerminalState(location string, params mod.ModuleParams, writer *utils.DataWriter) error {
+func processTerminalState(location string, params mod.ModuleParams, writer utils.DataWriter) error {
 	// Get username from path
 	user := utils.GetUsernameFromPath(location)
 
@@ -184,34 +185,34 @@ func processTerminalState(location string, params mod.ModuleParams, writer *util
 	dataFile := filepath.Join(location, "data.data")
 
 	if _, err := os.Stat(windowsPlist); os.IsNotExist(err) {
-		return fmt.Errorf("required file windows.plist not found for user %s", user)
+		return fmt.Errorf("%w for user %s", errWindowsPlistNotFound, user)
 	}
 
 	if _, err := os.Stat(dataFile); os.IsNotExist(err) {
-		return fmt.Errorf("required file data.data not found for user %s", user)
+		return fmt.Errorf("%w for user %s", errDataDataNotFound, user)
 	}
 
 	// Read data.data file
 	data, err := os.ReadFile(dataFile)
 	if err != nil {
-		return fmt.Errorf("error reading data.data: %v", err)
+		return fmt.Errorf("error reading data.data: %w", err)
 	}
 
 	// Check file header
 	if string(data[:8]) != "NSCR1000" {
-		return fmt.Errorf("invalid data.data file header")
+		return errInvalidDataDataFileHeader
 	}
 
 	// Parse windows.plist
 	windowsPlistData, err := os.ReadFile(windowsPlist)
 	if err != nil {
-		return fmt.Errorf("error reading windows.plist: %v", err)
+		return fmt.Errorf("error reading windows.plist: %w", err)
 	}
 
 	// Try to parse as binary plist first
 	windowsData, err := utils.ParseBiPList(string(windowsPlistData))
 	if err != nil {
-		params.Logger.Debug("Failed to parse binary plist: %v", err)
+		params.Logger.Debug("failed to parse binary plist: %w", err)
 		return err
 	}
 
@@ -230,7 +231,13 @@ func processTerminalState(location string, params mod.ModuleParams, writer *util
 		windowID := binary.BigEndian.Uint32([]byte(block[:4]))
 		blockSize := binary.BigEndian.Uint32([]byte(block[4:8]))
 
-		if uint32(len(block))+8 != blockSize {
+		blockLen, err := intToUInt32(len(block))
+		if err != nil {
+			params.Logger.Debug("Failed to convert block length: %v", err)
+			continue
+		}
+
+		if blockLen+8 != blockSize {
 			params.Logger.Debug("Block size mismatch for window ID %d", windowID)
 			continue
 		}
@@ -300,12 +307,12 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 	// Create AES cipher
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create AES cipher: %v", err)
+		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
 	}
 
 	// The IV (Initialization Vector) is typically the first block
 	if len(data) < aes.BlockSize {
-		return nil, fmt.Errorf("data too short to contain IV")
+		return nil, errDataIVSizeMissmatch
 	}
 	iv := data[:aes.BlockSize]
 	ciphertext := data[aes.BlockSize:]
@@ -315,7 +322,7 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 
 	// Ciphertext must be a multiple of block size
 	if len(ciphertext)%aes.BlockSize != 0 {
-		return nil, fmt.Errorf("ciphertext is not a multiple of block size")
+		return nil, errInvalidCiperTextSize
 	}
 
 	// Create output buffer and decrypt
@@ -325,13 +332,13 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 	// Remove PKCS#7 padding
 	paddingLen := int(plaintext[len(plaintext)-1])
 	if paddingLen > aes.BlockSize || paddingLen == 0 {
-		return nil, fmt.Errorf("invalid padding length")
+		return nil, errInvalidPaddingLength
 	}
 
 	// Verify padding
 	for i := len(plaintext) - paddingLen; i < len(plaintext); i++ {
 		if plaintext[i] != byte(paddingLen) {
-			return nil, fmt.Errorf("invalid padding")
+			return nil, errInvalidPadding
 		}
 	}
 
@@ -339,7 +346,7 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 	return plaintext[:len(plaintext)-paddingLen], nil
 }
 
-func writeTerminalStateRecord(terminalState map[string]interface{}, user string, windowID uint32, blockIndex int, writer *utils.DataWriter, params mod.ModuleParams) error {
+func writeTerminalStateRecord(terminalState map[string]interface{}, user string, windowID uint32, blockIndex int, writer utils.DataWriter, params mod.ModuleParams) error {
 	recordData := make(map[string]interface{})
 	recordData["user"] = user
 	recordData["window_id"] = windowID
@@ -377,4 +384,14 @@ func writeTerminalStateRecord(terminalState map[string]interface{}, user string,
 	}
 
 	return nil
+}
+
+func intToUInt32(i int) (uint32, error) {
+	if i < 0 {
+		return 0, fmt.Errorf("%w: negative value %d cannot be converted to uint32", errInvalidBlockLength, i)
+	}
+	if i > math.MaxUint32 {
+		return 0, fmt.Errorf("%w: value %d is too large to be converted to uint32", errInvalidBlockLength, i)
+	}
+	return uint32(i), nil
 }

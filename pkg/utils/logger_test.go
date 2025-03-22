@@ -64,8 +64,15 @@ func TestLogLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset file content
-			logger.file.Truncate(0)
-			logger.file.Seek(0, 0)
+			err := logger.file.Truncate(0)
+			if err != nil {
+				t.Fatalf("Failed to truncate file: %v", err)
+			}
+
+			_, err = logger.file.Seek(0, 0)
+			if err != nil {
+				t.Fatalf("Failed to seek file: %v", err)
+			}
 
 			logger.SetVerbosity(tt.verbosity)
 			tt.logFunc(tt.message)

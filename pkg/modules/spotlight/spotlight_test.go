@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSpotlightModule(t *testing.T) {
@@ -155,7 +156,9 @@ func verifySpotlightOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "com.apple.spotlight.Shortcuts")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "com.apple.spotlight.Shortcuts")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})
@@ -167,17 +170,19 @@ func verifySpotlightOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, data["display_name"])
 		assert.NotEmpty(t, data["last_used"])
 		assert.NotEmpty(t, data["url"])
-		assert.Contains(t, data["url"].(string), "file:///Applications/")
+		url, ok := data["url"].(string)
+		assert.True(t, ok, "URL should be a string")
+		assert.Contains(t, url, "file:///Applications/")
 	}
 
 	// Verify specific shortcut content
-	content_str := string(content)
-	assert.Contains(t, content_str, "Mail")
-	assert.Contains(t, content_str, "Safari")
-	assert.Contains(t, content_str, "Notes")
-	assert.Contains(t, content_str, "file:///Applications/Mail.app/")
-	assert.Contains(t, content_str, "file:///Applications/Safari.app/")
-	assert.Contains(t, content_str, "file:///Applications/Notes.app/")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "Mail")
+	assert.Contains(t, contentStr, "Safari")
+	assert.Contains(t, contentStr, "Notes")
+	assert.Contains(t, contentStr, "file:///Applications/Mail.app/")
+	assert.Contains(t, contentStr, "file:///Applications/Safari.app/")
+	assert.Contains(t, contentStr, "file:///Applications/Notes.app/")
 }
 
 // Helper function to split content into lines
