@@ -124,12 +124,14 @@ func collectChromeCookies(location, profileUsr, moduleName string, params mod.Mo
 			continue
 		}
 
+		creationUtcStr := utils.ParseChromeTimestamp(creationUtc)
+
 		recordData["chrome_profile"] = profileUsr
 		recordData["host_key"] = hostKey
 		recordData["name"] = name
 		recordData["value"] = value
 		recordData["path"] = path
-		recordData["creation_utc"] = utils.ParseChromeTimestamp(creationUtc)
+		recordData["creation_utc"] = creationUtcStr
 		recordData["expires_utc"] = utils.ParseChromeTimestamp(expiresUtc)
 		recordData["last_access_utc"] = utils.ParseChromeTimestamp(lastAccessUtc)
 		recordData["is_secure"] = isSecure
@@ -143,7 +145,7 @@ func collectChromeCookies(location, profileUsr, moduleName string, params mod.Mo
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["creation_utc"].(string),
+			EventTimestamp:      creationUtcStr,
 			Data:                recordData,
 			SourceFile:          cookiesDB,
 		}
@@ -209,13 +211,15 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 			continue
 		}
 
+		creationTimeStr := utils.ParseChromeTimestamp(creationTime)
+
 		recordData["user"] = user
 		recordData["profile"] = profile
 		recordData["host"] = host
 		recordData["name"] = name
 		recordData["value"] = value
 		recordData["path"] = path
-		recordData["creation_time"] = utils.ParseChromeTimestamp(creationTime)
+		recordData["creation_time"] = creationTimeStr
 		recordData["expiry"] = expiry
 		recordData["last_accessed"] = utils.ParseChromeTimestamp(lastAccessed)
 		recordData["is_secure"] = isSecure
@@ -225,7 +229,7 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["creation_time"].(string),
+			EventTimestamp:      creationTimeStr,
 			Data:                recordData,
 			SourceFile:          cookiesDB,
 		}

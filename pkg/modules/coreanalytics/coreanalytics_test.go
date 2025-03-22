@@ -106,7 +106,9 @@ func TestParseAnalyticsFiles(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for analytics
-	assert.Contains(t, jsonData["source_file"].(string), "Analytics")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Analytics")
 	assert.NotEmpty(t, jsonData["src_report"])
 	assert.NotEmpty(t, jsonData["diag_start"])
 	assert.NotEmpty(t, jsonData["diag_end"])
@@ -148,7 +150,9 @@ func TestParseAggregateFiles(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for aggregates
-	assert.Contains(t, jsonData["source_file"].(string), "aggregates")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "aggregates")
 	assert.NotEmpty(t, jsonData["src_report"])
 	assert.NotEmpty(t, jsonData["diag_start"])
 	assert.NotEmpty(t, jsonData["diag_end"])

@@ -83,9 +83,13 @@ func (m *NettopModule) Run(params mod.ModuleParams) error {
 		for index, col := range cols {
 
 			colName := fields[index]
+
+			// skip empty columns
 			if colName == "" && col == "" {
 				continue
-			} else if colName == "" && col != "" {
+			}
+
+			if colName == "" && col != "" {
 				recordData["process"] = col
 			} else {
 				recordData[string(colName)] = col

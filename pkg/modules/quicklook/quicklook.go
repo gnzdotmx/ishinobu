@@ -126,8 +126,10 @@ func (m *QuickLookModule) Run(params mod.ModuleParams) error {
 			recordData["path"] = folder
 			recordData["name"] = fileName
 
+			lastHitDateStr := ""
 			if lastHitDate.Valid {
-				recordData["last_hit_date"] = utils.ParseChromeTimestamp(fmt.Sprintf("%d", lastHitDate.Int64))
+				lastHitDateStr = utils.ParseChromeTimestamp(fmt.Sprintf("%d", lastHitDate.Int64))
+				recordData["last_hit_date"] = lastHitDateStr
 			}
 
 			if hitCount.Valid {
@@ -154,7 +156,7 @@ func (m *QuickLookModule) Run(params mod.ModuleParams) error {
 
 			record := utils.Record{
 				CollectionTimestamp: params.CollectionTimestamp,
-				EventTimestamp:      recordData["last_hit_date"].(string),
+				EventTimestamp:      lastHitDateStr,
 				Data:                recordData,
 				SourceFile:          file,
 			}

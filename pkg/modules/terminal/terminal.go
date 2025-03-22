@@ -14,6 +14,7 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +79,7 @@ func (m *TerminalModule) collectTerminalState(params mod.ModuleParams) error {
 	}
 
 	// Create a map to store writers for each user
-	writers := make(map[string]*utils.DataWriter)
+	writers := make(map[string]utils.DataWriter)
 
 	for _, location := range locations {
 		username := utils.GetUsernameFromPath(location)
@@ -116,7 +117,7 @@ func (m *TerminalModule) collectTerminalHistory(params mod.ModuleParams) error {
 	}
 
 	// Create a map to store writers for each user
-	writers := make(map[string]*utils.DataWriter)
+	writers := make(map[string]utils.DataWriter)
 
 	for _, path := range expandedPaths {
 		username := utils.GetUsernameFromPath(path)
@@ -175,7 +176,7 @@ func (m *TerminalModule) collectTerminalHistory(params mod.ModuleParams) error {
 	return nil
 }
 
-func processTerminalState(location string, params mod.ModuleParams, writer *utils.DataWriter) error {
+func processTerminalState(location string, params mod.ModuleParams, writer utils.DataWriter) error {
 	// Get username from path
 	user := utils.GetUsernameFromPath(location)
 
@@ -230,7 +231,13 @@ func processTerminalState(location string, params mod.ModuleParams, writer *util
 		windowID := binary.BigEndian.Uint32([]byte(block[:4]))
 		blockSize := binary.BigEndian.Uint32([]byte(block[4:8]))
 
-		if uint32(len(block))+8 != blockSize {
+		blockLen, err := intToUInt32(len(block))
+		if err != nil {
+			params.Logger.Debug("Failed to convert block length: %v", err)
+			continue
+		}
+
+		if blockLen+8 != blockSize {
 			params.Logger.Debug("Block size mismatch for window ID %d", windowID)
 			continue
 		}
@@ -339,7 +346,7 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 	return plaintext[:len(plaintext)-paddingLen], nil
 }
 
-func writeTerminalStateRecord(terminalState map[string]interface{}, user string, windowID uint32, blockIndex int, writer *utils.DataWriter, params mod.ModuleParams) error {
+func writeTerminalStateRecord(terminalState map[string]interface{}, user string, windowID uint32, blockIndex int, writer utils.DataWriter, params mod.ModuleParams) error {
 	recordData := make(map[string]interface{})
 	recordData["user"] = user
 	recordData["window_id"] = windowID
@@ -377,4 +384,14 @@ func writeTerminalStateRecord(terminalState map[string]interface{}, user string,
 	}
 
 	return nil
+}
+
+func intToUInt32(i int) (uint32, error) {
+	if i < 0 {
+		return 0, fmt.Errorf("%w: negative value %d cannot be converted to uint32", errInvalidBlockLength, i)
+	}
+	if i > math.MaxUint32 {
+		return 0, fmt.Errorf("%w: value %d is too large to be converted to uint32", errInvalidBlockLength, i)
+	}
+	return uint32(i), nil
 }

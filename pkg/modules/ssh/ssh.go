@@ -94,7 +94,7 @@ func (m *SSHModule) Run(params mod.ModuleParams) error {
 	return nil
 }
 
-func parseSSHFile(filePath, username, srcName string, params mod.ModuleParams, writer *utils.DataWriter) error {
+func parseSSHFile(filePath, username, srcName string, params mod.ModuleParams, writer utils.DataWriter) error {
 	// Run ssh-keygen to get key information
 	cmd := exec.Command("ssh-keygen", "-l", "-f", filePath)
 	output, err := cmd.CombinedOutput()

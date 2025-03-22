@@ -174,7 +174,10 @@ func verifyQuarantineEventsOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "QuarantineEventsV2")
+
+		sourceFileStr, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFileStr, "QuarantineEventsV2")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})

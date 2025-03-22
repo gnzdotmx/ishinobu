@@ -183,7 +183,8 @@ func verifyUsersOutput(t *testing.T, outputFile string) {
 		userName, _ := data["user"].(string)
 		sourceFile, _ := record["source_file"].(string)
 
-		if userName == "admin_user" {
+		switch userName {
+		case "admin_user":
 			foundAdmin = true
 			// Check admin-specific fields
 			assert.Equal(t, true, data["admin"])
@@ -194,7 +195,7 @@ func verifyUsersOutput(t *testing.T, outputFile string) {
 			assert.NotEmpty(t, data["mtime"])
 			assert.NotEmpty(t, data["atime"])
 			assert.NotEmpty(t, data["ctime"])
-		} else if userName == "standard_user" {
+		case "standard_user":
 			foundStandard = true
 			// Check standard user fields
 			assert.Equal(t, false, data["admin"])
@@ -205,7 +206,7 @@ func verifyUsersOutput(t *testing.T, outputFile string) {
 			assert.NotEmpty(t, data["mtime"])
 			assert.NotEmpty(t, data["atime"])
 			assert.NotEmpty(t, data["ctime"])
-		} else if userName == "deleted_user" {
+		case "deleted_user":
 			foundDeleted = true
 			// Check deleted user fields
 			assert.NotEmpty(t, data["date_deleted"])

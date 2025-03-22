@@ -241,7 +241,9 @@ func verifyTerminalStateOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "Terminal.savedState/Window_")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "Terminal.savedState/Window_")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})
@@ -330,21 +332,27 @@ func verifyTerminalHistoryOutput(t *testing.T, outputFile string) {
 			foundAdmin = true
 		}
 
-		sourceFile, _ := record["source_file"].(string)
-		if strings.Contains(sourceFile, ".bash_history") {
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+
+		switch {
+		case strings.Contains(sourceFile, ".bash_history"):
 			foundBashHistory = true
-		} else if strings.Contains(sourceFile, ".zsh_history") {
+		case strings.Contains(sourceFile, ".zsh_history"):
 			foundZshHistory = true
-		} else if strings.Contains(sourceFile, ".bash_sessions") {
+		case strings.Contains(sourceFile, ".bash_sessions"):
 			foundBashSession = true
 		}
 
-		command, _ := data["command"].(string)
-		if strings.Contains(command, "git clone") {
+		command, ok := data["command"].(string)
+		assert.True(t, ok, "Command should be a string")
+
+		switch {
+		case strings.Contains(command, "git clone"):
 			foundGitClone = true
-		} else if strings.Contains(command, "sudo apt") {
+		case strings.Contains(command, "sudo apt"):
 			foundSudoApt = true
-		} else if strings.Contains(command, "grep -i error") {
+		case strings.Contains(command, "grep -i error"):
 			foundGrepError = true
 		}
 	}

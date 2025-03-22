@@ -114,9 +114,11 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 			continue
 		}
 
+		vistTime := utils.ParseChromeTimestamp(visitDate)
+
 		recordData["user"] = user
 		recordData["profile"] = profile
-		recordData["visit_time"] = utils.ParseChromeTimestamp(visitDate)
+		recordData["visit_time"] = vistTime
 		recordData["title"] = title
 		recordData["url"] = url
 		recordData["visit_count"] = visitCount
@@ -126,7 +128,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["visit_time"].(string),
+			EventTimestamp:      vistTime,
 			Data:                recordData,
 			SourceFile:          historyDB,
 		}
@@ -195,11 +197,13 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 			continue
 		}
 
+		downloadStarted := utils.ParseChromeTimestamp(dateAdded)
+
 		recordData["user"] = user
 		recordData["profile"] = profile
 		recordData["download_url"] = url
 		recordData["download_path"] = contentParts[0]
-		recordData["download_started"] = utils.ParseChromeTimestamp(dateAdded)
+		recordData["download_started"] = downloadStarted
 
 		// Parse finish time from content
 		finishTimeParts := strings.Split(contentParts[2], ":")
@@ -215,7 +219,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["download_started"].(string),
+			EventTimestamp:      downloadStarted,
 			Data:                recordData,
 			SourceFile:          downloadsDB,
 		}
@@ -280,6 +284,9 @@ func collectFirefoxExtensions(location, moduleName string, params mod.ModulePara
 
 	recordData := make(map[string]interface{})
 	for _, ext := range extensions.Addons {
+
+		installDate := utils.ParseChromeTimestamp(fmt.Sprintf("%d", ext.InstallDate))
+
 		recordData["user"] = user
 		recordData["profile"] = profile
 		recordData["name"] = ext.DefaultLocale.Name
@@ -287,14 +294,14 @@ func collectFirefoxExtensions(location, moduleName string, params mod.ModulePara
 		recordData["creator"] = ext.DefaultLocale.Creator
 		recordData["description"] = ext.DefaultLocale.Description
 		recordData["update_url"] = ext.UpdateURL
-		recordData["install_date"] = utils.ParseChromeTimestamp(fmt.Sprintf("%d", ext.InstallDate))
+		recordData["install_date"] = installDate
 		recordData["last_updated"] = utils.ParseChromeTimestamp(fmt.Sprintf("%d", ext.UpdateDate))
 		recordData["source_uri"] = ext.SourceURI
 		recordData["homepage_url"] = ext.DefaultLocale.HomepageURL
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["install_date"].(string),
+			EventTimestamp:      installDate,
 			Data:                recordData,
 			SourceFile:          extensionsFile,
 		}

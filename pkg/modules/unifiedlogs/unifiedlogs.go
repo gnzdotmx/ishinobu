@@ -143,7 +143,12 @@ func (m *UnifiedLogsModule) Run(params mod.ModuleParams) error {
 			}
 
 			// Parse the timestamp
-			timestamp, err := utils.ParseTimestamp(recordData["timestamp"].(string))
+			timstampStr, ok := recordData["timestamp"].(string)
+			if !ok {
+				params.Logger.Debug("Timestamp not found in record")
+			}
+
+			timestamp, err := utils.ParseTimestamp(timstampStr)
 			if err != nil {
 				params.Logger.Debug("Error parsing timestamp: %v", err)
 			}

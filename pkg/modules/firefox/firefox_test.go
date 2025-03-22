@@ -107,7 +107,9 @@ func TestCollectFirefoxHistory(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Firefox history
-	assert.Contains(t, jsonData["source_file"].(string), "places.sqlite")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "places.sqlite")
 	assert.Equal(t, "testuser", jsonData["user"])
 	assert.Equal(t, "default-profile", jsonData["profile"])
 	assert.Equal(t, "https://www.example.com", jsonData["url"])
@@ -150,7 +152,9 @@ func TestCollectFirefoxDownloads(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Firefox downloads
-	assert.Contains(t, jsonData["source_file"].(string), "places.sqlite")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "places.sqlite")
 	assert.Equal(t, "testuser", jsonData["user"])
 	assert.Equal(t, "default-profile", jsonData["profile"])
 	assert.Equal(t, "https://www.example.com/downloads/test.pdf", jsonData["download_url"])
@@ -194,7 +198,9 @@ func TestCollectFirefoxExtensions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Firefox extensions
-	assert.Contains(t, jsonData["source_file"].(string), "extensions.json")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "extensions.json")
 	assert.Equal(t, "testuser", jsonData["user"])
 	assert.Equal(t, "default-profile", jsonData["profile"])
 	assert.Equal(t, "Test Extension", jsonData["name"])

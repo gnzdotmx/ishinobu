@@ -24,7 +24,7 @@ func TestCompressOutput(t *testing.T) {
 
 	for _, fname := range testFiles {
 		filePath := filepath.Join(tempDir, fname)
-		err := os.WriteFile(filePath, []byte(testContent), 0644)
+		err := os.WriteFile(filePath, []byte(testContent), 0600)
 		if err != nil {
 			t.Fatalf("Failed to create test file %s: %v", fname, err)
 		}

@@ -334,15 +334,19 @@ func verifyListFilesOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, data["mode"], "Should have mode")
 
 		// Check if we found our test files
-		name, _ := data["name"].(string)
+		name, ok := data["name"].(string)
+		if !ok {
+			continue
+		}
 
-		if name == "test.sh" {
+		switch name {
+		case "test.sh":
 			foundScriptFile = true
 			assert.NotEmpty(t, data["md5"], "Script file should have MD5")
 			assert.NotEmpty(t, data["sha256"], "Script file should have SHA256")
-		} else if name == "config.plist" {
+		case "config.plist":
 			foundConfigFile = true
-		} else if name == "system.log" {
+		case "system.log":
 			foundLogFile = true
 		}
 	}

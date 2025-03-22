@@ -216,7 +216,12 @@ func recordToJSON(record utils.Record) map[string]interface{} {
 		"source_file":          record.SourceFile,
 	}
 
-	for k, v := range record.Data.(map[string]interface{}) {
+	recordMap, ok := record.Data.(map[string]interface{})
+	if !ok {
+		return jsonRecord
+	}
+
+	for k, v := range recordMap {
 		jsonRecord[k] = v
 	}
 

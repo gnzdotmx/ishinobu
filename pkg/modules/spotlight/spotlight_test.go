@@ -156,7 +156,9 @@ func verifySpotlightOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "com.apple.spotlight.Shortcuts")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "com.apple.spotlight.Shortcuts")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})
@@ -168,7 +170,9 @@ func verifySpotlightOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, data["display_name"])
 		assert.NotEmpty(t, data["last_used"])
 		assert.NotEmpty(t, data["url"])
-		assert.Contains(t, data["url"].(string), "file:///Applications/")
+		url, ok := data["url"].(string)
+		assert.True(t, ok, "URL should be a string")
+		assert.Contains(t, url, "file:///Applications/")
 	}
 
 	// Verify specific shortcut content

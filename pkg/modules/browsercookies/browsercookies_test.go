@@ -106,7 +106,9 @@ func TestCollectChromeCookies(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome cookies
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/Cookies")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok)
+	assert.Contains(t, sourceFile, "Chrome/Default/Cookies")
 	assert.Equal(t, "Default", jsonData["chrome_profile"])
 	assert.Equal(t, "example.com", jsonData["host_key"])
 	assert.Equal(t, "test_cookie", jsonData["name"])
@@ -153,7 +155,9 @@ func TestCollectFirefoxCookies(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Firefox cookies
-	assert.Contains(t, jsonData["source_file"].(string), "Firefox/Profiles/abcd1234.default/cookies.sqlite")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Firefox/Profiles/abcd1234.default/cookies.sqlite")
 	assert.Equal(t, "testuser", jsonData["user"])
 	assert.Equal(t, "abcd1234.default", jsonData["profile"])
 	assert.Equal(t, "example.org", jsonData["host"])
@@ -285,7 +289,10 @@ func writeTestCookieRecord(t *testing.T, filepath string, record utils.Record) {
 		"source_file":          record.SourceFile,
 	}
 
-	for k, v := range record.Data.(map[string]interface{}) {
+	recordMap, ok := record.Data.(map[string]interface{})
+	assert.True(t, ok, "Record data should be a map")
+
+	for k, v := range recordMap {
 		jsonRecord[k] = v
 	}
 

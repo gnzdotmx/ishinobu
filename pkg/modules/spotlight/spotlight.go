@@ -95,7 +95,10 @@ func processSpotlightFile(file string, moduleName string, params mod.ModuleParam
 
 	// Process each shortcut entry
 	for shortcut, value := range spotlightData {
-		shortcutData := value.(map[string]interface{})
+		shortcutData, ok := value.(map[string]interface{})
+		if !ok {
+			params.Logger.Debug("Invalid shortcut data: %v", value)
+		}
 
 		recordData := make(map[string]interface{})
 		recordData["username"] = username
@@ -103,8 +106,10 @@ func processSpotlightFile(file string, moduleName string, params mod.ModuleParam
 		recordData["display_name"] = shortcutData["DISPLAY_NAME"]
 
 		// Convert timestamp
+		timestamp := ""
+		var err error
 		if lastUsed, ok := shortcutData["LAST_USED"].(float64); ok {
-			timestamp, err := utils.ConvertCFAbsoluteTimeToDate(fmt.Sprintf("%f", lastUsed))
+			timestamp, err = utils.ConvertCFAbsoluteTimeToDate(fmt.Sprintf("%f", lastUsed))
 			if err != nil {
 				params.Logger.Debug("Error converting timestamp: %v", err)
 				continue
@@ -116,7 +121,7 @@ func processSpotlightFile(file string, moduleName string, params mod.ModuleParam
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["last_used"].(string),
+			EventTimestamp:      timestamp,
 			Data:                recordData,
 			SourceFile:          file,
 		}

@@ -10,4 +10,5 @@ var (
 	errInvalidDataDataFileHeader = errors.New("invalid data.data file header")
 	errDataDataNotFound          = errors.New("required file data.data not found")
 	errWindowsPlistNotFound      = errors.New("required file windows.plist not found")
+	errInvalidBlockLength        = errors.New("invalid block length")
 )

@@ -181,11 +181,12 @@ func verifyNettopOutput(t *testing.T, outputFile string) {
 
 		// Track which processes and interfaces we found
 		process, _ := data["process"].(string)
-		if process == "chrome" {
+		switch process {
+		case "chrome":
 			foundChrome = true
-		} else if process == "firefox" {
+		case "firefox":
 			foundFirefox = true
-		} else if process == "postgres" {
+		case "postgres":
 			foundPostgres = true
 		}
 

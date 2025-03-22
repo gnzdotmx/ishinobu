@@ -111,15 +111,26 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 				for _, state := range states {
 					if persistentState, ok := state.(map[string]interface{})["PersistentState"].(map[string]interface{}); ok {
 						if url, ok := persistentState["tabURL"].(string); ok {
-							tabTitle := persistentState["TabTitle"].(string)
-							dateClosed, err := utils.ParseTimestamp(persistentState["DateClosed"].(string))
+							tabTitle, ok := persistentState["TabTitle"].(string)
+							if !ok {
+								params.Logger.Debug("TabTitle not found")
+							}
+
+							dateClosedStr, ok := persistentState["DateClosed"].(string)
+							if !ok {
+								params.Logger.Debug("DateClosed not found")
+							}
+
+							dateClosed, err := utils.ParseTimestamp(dateClosedStr)
 							if err != nil {
 								params.Logger.Debug("Error parsing timestamp: %v", err)
 							}
+
 							lastVisitTime := ""
 							if lvt, ok := persistentState["LastVisitTime"]; ok {
 								lastVisitTime = utils.ParseChromeTimestamp(fmt.Sprintf("%v", lvt))
 							}
+
 							recentlyClosed[url] = []string{tabTitle, dateClosed, lastVisitTime}
 						}
 					}
@@ -139,8 +150,10 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 			continue
 		}
 
+		visitTime = utils.ParseChromeTimestamp(visitTime)
+
 		recordData["user"] = userProfile
-		recordData["visit_time"] = utils.ParseChromeTimestamp(visitTime)
+		recordData["visit_time"] = visitTime
 		recordData["title"] = title
 		recordData["url"] = url
 		recordData["visit_count"] = visitCount
@@ -155,7 +168,7 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["visit_time"].(string),
+			EventTimestamp:      visitTime,
 			Data:                recordData,
 			SourceFile:          historyDB,
 		}
@@ -201,20 +214,24 @@ func downloadsSafariHistory(location string, moduleName string, params mod.Modul
 				recordData["user"] = userProfile
 				recordData["download_url"] = entry["DownloadEntryURL"]
 				recordData["download_path"] = entry["DownloadEntryPath"]
-				recordData["download_started"], err = utils.ParseTimestamp(fmt.Sprintf("%v", entry["DownloadEntryDateAddedKey"]))
+
+				downloadStarted, err := utils.ParseTimestamp(fmt.Sprintf("%v", entry["DownloadEntryDateAddedKey"]))
 				if err != nil {
 					params.Logger.Debug("Error parsing timestamp: %v", err)
 				}
+				recordData["download_started"] = downloadStarted
+
 				recordData["download_finished"], err = utils.ParseTimestamp(fmt.Sprintf("%v", entry["DownloadEntryDateFinishedKey"]))
 				if err != nil {
 					params.Logger.Debug("Error parsing timestamp: %v", err)
 				}
+
 				recordData["download_totalbytes"] = entry["DownloadEntryProgressTotalToLoad"]
 				recordData["download_bytes_received"] = entry["DownloadEntryProgressBytesSoFar"]
 
 				record := utils.Record{
 					CollectionTimestamp: params.CollectionTimestamp,
-					EventTimestamp:      recordData["download_started"].(string),
+					EventTimestamp:      downloadStarted,
 					Data:                recordData,
 					SourceFile:          downloadsFile,
 				}
@@ -264,7 +281,11 @@ func getSafariExtensions(location string, moduleName string, params mod.ModulePa
 				recordData["bundle_id"] = extension["Bundle Identifier"]
 
 				// Get extension file metadata
-				extensionFile := filepath.Join(extensionsDir, extension["Archive File Name"].(string))
+				archiveFileName, ok := extension["Archive File Name"].(string)
+				if !ok {
+					params.Logger.Debug("Failed to get archive file name")
+				}
+				extensionFile := filepath.Join(extensionsDir, archiveFileName)
 				if fileInfo, err := os.Stat(extensionFile); err == nil {
 					recordData["ctime"] = fileInfo.ModTime().Format(time.RFC3339)
 					recordData["mtime"] = fileInfo.ModTime().Format(time.RFC3339)

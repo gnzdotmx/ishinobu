@@ -169,7 +169,7 @@ func (m *SyslogModule) Run(params mod.ModuleParams) error {
 	return nil
 }
 
-func writeRecord(writer *utils.DataWriter, logFile, timestamp, message string, params mod.ModuleParams) error {
+func writeRecord(writer utils.DataWriter, logFile, timestamp, message string, params mod.ModuleParams) error {
 	formattedTime, err := utils.ConvertDateString(timestamp)
 	if err != nil {
 		return err

@@ -489,7 +489,10 @@ func writeAutostartTestRecord(t *testing.T, filepath string, record utils.Record
 		"source_file":          record.SourceFile,
 	}
 
-	for k, v := range record.Data.(map[string]interface{}) {
+	recordMap, ok := record.Data.(map[string]interface{})
+	assert.True(t, ok, "Record data should be a map")
+
+	for k, v := range recordMap {
 		jsonRecord[k] = v
 	}
 

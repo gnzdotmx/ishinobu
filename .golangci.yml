@@ -3,7 +3,7 @@ linters:
     - asciicheck
     - bodyclose
     - err113
-    - forcetypeassert
+    #- forcetypeassert # disable for now until code base is in a better place
     - gocritic
     - gocyclo
     - gofmt

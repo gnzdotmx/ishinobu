@@ -110,7 +110,9 @@ func TestCollectChromeHistory(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome history
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/History")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/History")
 	assert.Equal(t, "Default", jsonData["chrome_profile"])
 	assert.Equal(t, "https://www.example.com", jsonData["url"])
 	assert.Equal(t, "Example Website", jsonData["title"])
@@ -153,7 +155,9 @@ func TestCollectChromeDownloads(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome downloads
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/History")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/History")
 	assert.Equal(t, "/Users/testuser/Downloads/test.pdf", jsonData["current_path"])
 	assert.Equal(t, "/Users/testuser/Downloads/test.pdf", jsonData["target_path"])
 	assert.NotEmpty(t, jsonData["start_time"])
@@ -196,7 +200,9 @@ func TestCollectChromeProfiles(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome profiles
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Local State")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Local State")
 	assert.Equal(t, "Default", jsonData["profile_name"])
 	assert.Equal(t, "Test User", jsonData["gaia_name"])
 	assert.NotEmpty(t, jsonData["last_used"])
@@ -236,7 +242,9 @@ func TestCollectChromeExtensions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome extensions
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/Extensions")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/Extensions")
 	assert.Equal(t, "Default", jsonData["chrome_profile"])
 	assert.Equal(t, "abcdefghijklmnopqrstuvwxyz", jsonData["extension_id"])
 	assert.Equal(t, "Test Extension", jsonData["name"])
@@ -283,7 +291,9 @@ func TestCollectChromePopupSettings(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome popup settings
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/Preferences")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/Preferences")
 	assert.Equal(t, "Default", jsonData["profile"])
 	assert.Equal(t, "https://www.example.com", jsonData["url"])
 	assert.Equal(t, "Allowed", jsonData["setting"])
