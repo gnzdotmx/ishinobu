@@ -1,0 +1,36 @@
+linters:
+  enable:
+    - asciicheck
+    - bodyclose
+    - err113
+    - forcetypeassert
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosec
+    - misspell
+    - nakedret
+    - nolintlint
+    - stylecheck
+linters-settings:
+  goimports:
+    # https://google.github.io/styleguide/go/decisions#import-grouping
+    local-prefixes: github.com/gnzdotmx
+  govet:
+    enable:
+      # https://google.github.io/styleguide/go/best-practices#shadowing
+      - shadow
+  nakedret:
+    max-func-lines: 0
+issues:
+  exclude-rules:
+    - text: 'shadow: declaration of "err" shadows declaration at'
+      linters:
+        - govet
+  include:
+    # Requires commentary for packages and exported identifiers
+    # https://google.github.io/styleguide/go/decisions#commentary
+    - EXC0013
+    - EXC0014
+    - EXC0015
