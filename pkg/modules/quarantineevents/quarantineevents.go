@@ -74,7 +74,7 @@ func processQuarantineEvents(dbPath, moduleName string, params mod.ModuleParams)
 	tempDB := filepath.Join(ishinobuDir, "quarantine_events")
 	err := utils.CopyFile(dbPath, tempDB)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 	defer os.RemoveAll(ishinobuDir)
 
@@ -89,7 +89,7 @@ func processQuarantineEvents(dbPath, moduleName string, params mod.ModuleParams)
 	query := `SELECT * FROM LSQuarantineEvent`
 	rows, err := utils.QuerySQLite(tempDB, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 	defer rows.Close()
 

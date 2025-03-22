@@ -184,34 +184,34 @@ func processTerminalState(location string, params mod.ModuleParams, writer *util
 	dataFile := filepath.Join(location, "data.data")
 
 	if _, err := os.Stat(windowsPlist); os.IsNotExist(err) {
-		return fmt.Errorf("required file windows.plist not found for user %s", user)
+		return fmt.Errorf("%w for user %s", errWindowsPlistNotFound, user)
 	}
 
 	if _, err := os.Stat(dataFile); os.IsNotExist(err) {
-		return fmt.Errorf("required file data.data not found for user %s", user)
+		return fmt.Errorf("%w for user %s", errDataDataNotFound, user)
 	}
 
 	// Read data.data file
 	data, err := os.ReadFile(dataFile)
 	if err != nil {
-		return fmt.Errorf("error reading data.data: %v", err)
+		return fmt.Errorf("error reading data.data: %w", err)
 	}
 
 	// Check file header
 	if string(data[:8]) != "NSCR1000" {
-		return fmt.Errorf("invalid data.data file header")
+		return errInvalidDataDataFileHeader
 	}
 
 	// Parse windows.plist
 	windowsPlistData, err := os.ReadFile(windowsPlist)
 	if err != nil {
-		return fmt.Errorf("error reading windows.plist: %v", err)
+		return fmt.Errorf("error reading windows.plist: %w", err)
 	}
 
 	// Try to parse as binary plist first
 	windowsData, err := utils.ParseBiPList(string(windowsPlistData))
 	if err != nil {
-		params.Logger.Debug("Failed to parse binary plist: %v", err)
+		params.Logger.Debug("failed to parse binary plist: %w", err)
 		return err
 	}
 
@@ -300,12 +300,12 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 	// Create AES cipher
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create AES cipher: %v", err)
+		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
 	}
 
 	// The IV (Initialization Vector) is typically the first block
 	if len(data) < aes.BlockSize {
-		return nil, fmt.Errorf("data too short to contain IV")
+		return nil, errDataIVSizeMissmatch
 	}
 	iv := data[:aes.BlockSize]
 	ciphertext := data[aes.BlockSize:]
@@ -315,7 +315,7 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 
 	// Ciphertext must be a multiple of block size
 	if len(ciphertext)%aes.BlockSize != 0 {
-		return nil, fmt.Errorf("ciphertext is not a multiple of block size")
+		return nil, errInvalidCiperTextSize
 	}
 
 	// Create output buffer and decrypt
@@ -325,13 +325,13 @@ func decryptBlock(data, key []byte) ([]byte, error) {
 	// Remove PKCS#7 padding
 	paddingLen := int(plaintext[len(plaintext)-1])
 	if paddingLen > aes.BlockSize || paddingLen == 0 {
-		return nil, fmt.Errorf("invalid padding length")
+		return nil, errInvalidPaddingLength
 	}
 
 	// Verify padding
 	for i := len(plaintext) - paddingLen; i < len(plaintext); i++ {
 		if plaintext[i] != byte(paddingLen) {
-			return nil, fmt.Errorf("invalid padding")
+			return nil, errInvalidPadding
 		}
 	}
 

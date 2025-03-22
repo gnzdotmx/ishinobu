@@ -169,7 +169,7 @@ func (m *QuickLookModule) Run(params mod.ModuleParams) error {
 	// Clean up temporary directory
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
 	}
 
 	return nil

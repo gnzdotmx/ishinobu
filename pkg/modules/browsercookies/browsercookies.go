@@ -96,7 +96,7 @@ func collectChromeCookies(location, profileUsr, moduleName string, params mod.Mo
 	dst := "/tmp/ishinobu-Chrome-Cookies/" + userProfile + "_chrome_cookies"
 	err = utils.CopyFile(cookiesDB, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -107,7 +107,7 @@ func collectChromeCookies(location, profileUsr, moduleName string, params mod.Mo
 	`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	recordData := make(map[string]interface{})
@@ -157,7 +157,7 @@ func collectChromeCookies(location, profileUsr, moduleName string, params mod.Mo
 	// Cleanup
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Chrome-Cookies: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu-Chrome-Cookies: %w", err)
 	}
 
 	return nil
@@ -184,7 +184,7 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 	dst := "/tmp/ishinobu-Firefox-Cookies/" + profile + "_firefox_cookies"
 	err = utils.CopyFile(cookiesDB, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -194,7 +194,7 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 	`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	recordData := make(map[string]interface{})
@@ -239,7 +239,7 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 	// Cleanup
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-Cookies: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-Cookies: %w", err)
 	}
 
 	return nil

@@ -825,9 +825,17 @@ func TestGetExtensionName(t *testing.T) {
 	t.Run("Invalid manifest JSON", func(t *testing.T) {
 		// Create invalid JSON manifest
 		invalidManifestDir := filepath.Join(extensionsDir, "invalid", "1.0")
-		os.MkdirAll(invalidManifestDir, 0755)
+		err := os.MkdirAll(invalidManifestDir, 0755)
+		if err != nil {
+			t.Fatal(err, "Failed to create invalid manifest directory")
+		}
+
 		invalidManifestPath := filepath.Join(invalidManifestDir, "manifest.json")
-		os.WriteFile(invalidManifestPath, []byte("{invalid json"), 0600)
+
+		err = os.WriteFile(invalidManifestPath, []byte("{invalid json"), 0600)
+		if err != nil {
+			t.Fatal(err, "Failed to create invalid manifest file")
+		}
 
 		name, err := getExtensionName(tmpDir, "", "invalid")
 		assert.Error(t, err)

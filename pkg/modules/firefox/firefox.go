@@ -90,7 +90,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 	dst := "/tmp/ishinobu-Firefox-History/" + profile + "_firefox_history"
 	err = utils.CopyFile(historyDB, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -102,7 +102,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 	`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	recordData := make(map[string]interface{})
@@ -140,7 +140,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 	// Cleanup
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-History: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-History: %w", err)
 	}
 
 	return nil
@@ -167,7 +167,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 	dst := "/tmp/ishinobu-Firefox-Downloads/" + profile + "_firefox_downloads"
 	err = utils.CopyFile(downloadsDB, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -178,7 +178,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 	`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	recordData := make(map[string]interface{})
@@ -229,7 +229,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 	// Cleanup
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-Downloads: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-Downloads: %w", err)
 	}
 
 	return nil
@@ -265,17 +265,17 @@ func collectFirefoxExtensions(location, moduleName string, params mod.ModulePara
 
 	extensionsFile := filepath.Join(location, "extensions.json")
 	if _, err := os.Stat(extensionsFile); os.IsNotExist(err) {
-		return fmt.Errorf("extensions.json not found: %v", err)
+		return fmt.Errorf("extensions.json not found: %w", err)
 	}
 
 	data, err := os.ReadFile(extensionsFile)
 	if err != nil {
-		return fmt.Errorf("error reading extensions.json: %v", err)
+		return fmt.Errorf("error reading extensions.json: %w", err)
 	}
 
 	var extensions ExtensionsData
 	if err := json.Unmarshal(data, &extensions); err != nil {
-		return fmt.Errorf("error parsing extensions.json: %v", err)
+		return fmt.Errorf("error parsing extensions.json: %w", err)
 	}
 
 	recordData := make(map[string]interface{})

@@ -83,7 +83,7 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 	dst := "/tmp/ishinobu/safari_history"
 	err = utils.CopyFile(historyDB, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -98,7 +98,7 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	// Parse recently closed tabs
@@ -168,7 +168,7 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 	// Remove temporary folder
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
 	}
 	return nil
 }
@@ -185,12 +185,12 @@ func downloadsSafariHistory(location string, moduleName string, params mod.Modul
 	downloadsFile := filepath.Join(location, "Downloads.plist")
 	data, err := os.ReadFile(downloadsFile)
 	if err != nil {
-		return fmt.Errorf("failed to read Downloads.plist: %v", err)
+		return fmt.Errorf("failed to read Downloads.plist: %w", err)
 	}
 
 	var plistData interface{}
 	if _, err := plist.Unmarshal(data, &plistData); err != nil {
-		return fmt.Errorf("failed to parse Downloads.plist: %v", err)
+		return fmt.Errorf("failed to parse Downloads.plist: %w", err)
 	}
 
 	// Parse download history
@@ -242,12 +242,12 @@ func getSafariExtensions(location string, moduleName string, params mod.ModulePa
 	extensionsFile := filepath.Join(extensionsDir, "Extensions.plist")
 	data, err := os.ReadFile(extensionsFile)
 	if err != nil {
-		return fmt.Errorf("failed to read Extensions.plist: %v", err)
+		return fmt.Errorf("failed to read Extensions.plist: %w", err)
 	}
 
 	var plistData interface{}
 	if _, err := plist.Unmarshal(data, &plistData); err != nil {
-		return fmt.Errorf("failed to parse Extensions.plist: %v", err)
+		return fmt.Errorf("failed to parse Extensions.plist: %w", err)
 	}
 
 	// Parse installed extensions

@@ -37,7 +37,7 @@ func (c *CommandModule) Run(params ModuleParams) error {
 	cmd.Env = append(cmd.Env, "TZ=UTC")
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("error running command: %v", err)
+		return fmt.Errorf("error running command: %w", err)
 	}
 
 	// Split the output into lines
@@ -93,7 +93,7 @@ func (c *CommandModule) Run(params ModuleParams) error {
 
 		err := writer.WriteRecord(record)
 		if err != nil {
-			return fmt.Errorf("error writing record: %v", err)
+			return fmt.Errorf("error writing record: %w", err)
 		}
 	}
 

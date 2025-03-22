@@ -109,7 +109,7 @@ func (m *UnifiedLogsModule) Run(params mod.ModuleParams) error {
 	outputFileName := utils.GetOutputFileName(m.GetName(), params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create data writer: %v", err)
+		return fmt.Errorf("failed to create data writer: %w", err)
 	}
 	defer writer.Close()
 
@@ -117,7 +117,7 @@ func (m *UnifiedLogsModule) Run(params mod.ModuleParams) error {
 	for _, cmd := range commands {
 
 		// Run the command
-		cmdexec := exec.Command("bash", "-c", cmd.Command)
+		cmdexec := exec.Command("bash", "-c", cmd.Command) // #nosec G204
 
 		// Set the TZ environment variable to UTC
 		cmdexec.Env = append(cmdexec.Env, "TZ=UTC")

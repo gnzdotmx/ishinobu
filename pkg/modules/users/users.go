@@ -200,7 +200,7 @@ func getAdminUsers() ([]string, error) {
 		return adminUsers, nil
 	}
 
-	return nil, fmt.Errorf("no admin users found in plist")
+	return nil, errNoAdminUsers
 }
 
 func getLastLoggedInUser() (string, error) {
@@ -219,7 +219,7 @@ func getLastLoggedInUser() (string, error) {
 		return lastUser, nil
 	}
 
-	return "", fmt.Errorf("last user not found in plist")
+	return "", errLastUserNotFound
 }
 
 type UserInfo struct {

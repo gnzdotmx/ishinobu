@@ -113,13 +113,13 @@ func visitChromeHistory(location string, profileUsr string, moduleName string, p
 	dst := "/tmp/ishinobu/" + userProfile + "_chrome_history"
 	err = utils.CopyFile(profile, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := "SELECT urls.url, urls.title, visits.visit_time, visits.from_visit, visits.transition FROM urls INNER JOIN visits ON urls.id = visits.url ORDER BY visits.visit_time DESC;"
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	// Iterate over each row and create a record
@@ -154,7 +154,7 @@ func visitChromeHistory(location string, profileUsr string, moduleName string, p
 	// Remove temporary folder to store collected logs
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
 	}
 	return nil
 }
@@ -179,7 +179,7 @@ func downloadsChromeHistory(location string, profileUsr string, moduleName strin
 	dst := "/tmp/ishinobu/" + userProfile + "_download_chrome_history"
 	err = utils.CopyFile(profile, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -201,7 +201,7 @@ func downloadsChromeHistory(location string, profileUsr string, moduleName strin
 		`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	// Iterate over each row and create a record
@@ -241,7 +241,7 @@ func downloadsChromeHistory(location string, profileUsr string, moduleName strin
 	// Remove temporary folder to store collected logs
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
 	}
 	return nil
 }
@@ -355,13 +355,13 @@ func ChromeProfiles(location string, moduleName string, params mod.ModuleParams)
 func getChromeExtensions(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
 	extensions, err := os.ReadDir(filepath.Join(location, profileUsr, "Extensions/"))
 	if err != nil {
-		return fmt.Errorf("failed to read directory: %v", err)
+		return fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	outputFileName := utils.GetOutputFileName(moduleName+"-extensions-"+profileUsr, params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create data writer: %v", err)
+		return fmt.Errorf("failed to create data writer: %w", err)
 	}
 
 	for _, extension := range extensions {
@@ -437,19 +437,19 @@ func getPopupChromeSettings(location string, profileUsr string, moduleName strin
 	preferencesFile := filepath.Join(location, profileUsr, "Preferences")
 	data, err := os.ReadFile(preferencesFile)
 	if err != nil {
-		return fmt.Errorf("failed to read preferences file: %v", err)
+		return fmt.Errorf("failed to read preferences file: %w", err)
 	}
 
 	// unmarshal the JSON data
 	var preferences map[string]interface{}
 	if err := json.Unmarshal(data, &preferences); err != nil {
-		return fmt.Errorf("failed to parse JSON: %v", err)
+		return fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	outputFileName := utils.GetOutputFileName(moduleName+"-settings-popup-"+profileUsr, params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create data writer: %v", err)
+		return fmt.Errorf("failed to create data writer: %w", err)
 	}
 
 	// collect and display popup settings
@@ -723,7 +723,7 @@ func getExtensionName(location string, profileUsr string, extensionID string) (s
 	manifestPath := filepath.Join(location, profileUsr, "Extensions", extensionID, "*", "manifest.json")
 	manifestFiles, err := utils.ListFiles(manifestPath)
 	if err != nil || len(manifestFiles) == 0 {
-		return extensionID, fmt.Errorf("manifest not found for extension: %s", extensionID)
+		return extensionID, fmt.Errorf("%w: %s", errManifestNotFound, extensionID)
 	}
 
 	// Read manifest file

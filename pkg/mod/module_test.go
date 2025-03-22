@@ -10,6 +10,8 @@ import (
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 
+var errMockError = errors.New("mock error")
+
 // Mock module for testing
 type MockModule struct {
 	name      string
@@ -24,7 +26,7 @@ func (m *MockModule) GetName() string {
 func (m *MockModule) Run(params ModuleParams) error {
 	m.runCount++
 	if m.shouldErr {
-		return errors.New("mock error")
+		return errMockError
 	}
 	return nil
 }

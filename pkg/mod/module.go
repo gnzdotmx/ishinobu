@@ -39,7 +39,7 @@ func AllModules() []string {
 func RunModule(name string, params ModuleParams) error {
 	module, exists := moduleRegistry[name]
 	if !exists {
-		return fmt.Errorf("module %s not found", name)
+		return fmt.Errorf("%w: %s", errModNotFound, name)
 	}
 	return module.Run(params)
 }

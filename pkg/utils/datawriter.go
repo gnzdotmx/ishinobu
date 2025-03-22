@@ -33,7 +33,10 @@ func NewDataWriter(outDir, filename, format string) (*DataWriter, error) {
 	if format == "csv" {
 		csvWriter := csv.NewWriter(file)
 		// Write CSV header
-		csvWriter.Write([]string{"collection_timestamp", "events_timestamp", "source_file", "data"})
+		err := csvWriter.Write([]string{"collection_timestamp", "events_timestamp", "source_file", "data"})
+		if err != nil {
+			return nil, fmt.Errorf("error writing CSV header: %w", err)
+		}
 		writer = csvWriter
 	} else {
 		writer = json.NewEncoder(file)

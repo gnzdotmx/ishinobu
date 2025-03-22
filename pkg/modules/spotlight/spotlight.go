@@ -79,18 +79,18 @@ func processSpotlightFile(file string, moduleName string, params mod.ModuleParam
 	outputFileName := utils.GetOutputFileName(moduleName+"-"+username, params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create data writer: %v", err)
+		return fmt.Errorf("failed to create data writer: %w", err)
 	}
 
 	// Read and parse the plist file
 	data, err := os.ReadFile(file)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %v", err)
+		return fmt.Errorf("failed to read file: %w", err)
 	}
 
 	spotlightData, err := utils.ParseBiPList(string(data))
 	if err != nil {
-		return fmt.Errorf("failed to parse plist: %v", err)
+		return fmt.Errorf("failed to parse plist: %w", err)
 	}
 
 	// Process each shortcut entry

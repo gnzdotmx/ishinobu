@@ -104,7 +104,10 @@ func (m *SyslogModule) Run(params mod.ModuleParams) error {
 			if matches := syslogRegex.FindStringSubmatch(line); matches != nil {
 				// If we have accumulated multiline content, write it first
 				if multilineBuffer.Len() > 0 {
-					writeRecord(writer, logFile, lastTimestamp, multilineBuffer.String(), params)
+					err := writeRecord(writer, logFile, lastTimestamp, multilineBuffer.String(), params)
+					if err != nil {
+						params.Logger.Debug("Error writing record: %v", err)
+					}
 					multilineBuffer.Reset()
 				}
 
@@ -152,7 +155,10 @@ func (m *SyslogModule) Run(params mod.ModuleParams) error {
 
 		// Write any remaining multiline content
 		if multilineBuffer.Len() > 0 {
-			writeRecord(writer, logFile, lastTimestamp, multilineBuffer.String(), params)
+			err := writeRecord(writer, logFile, lastTimestamp, multilineBuffer.String(), params)
+			if err != nil {
+				params.Logger.Debug("Error writing record: %v", err)
+			}
 		}
 
 		if err := scanner.Err(); err != nil {

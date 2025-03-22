@@ -41,7 +41,7 @@ func (m *NettopModule) Run(params mod.ModuleParams) error {
 	cmd := exec.Command("nettop", "-n", "-P", "-J", "interface,state,bytes_in,bytes_out,packets_in,packets_out", "-L", "1")
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("error running command: %v", err)
+		return fmt.Errorf("error running command: %w", err)
 	}
 
 	// Split the output into lines
@@ -64,7 +64,7 @@ func (m *NettopModule) Run(params mod.ModuleParams) error {
 	outputFileName := utils.GetOutputFileName(m.GetName(), params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create data writer: %v", err)
+		return fmt.Errorf("failed to create data writer: %w", err)
 	}
 	defer writer.Close()
 
@@ -102,7 +102,7 @@ func (m *NettopModule) Run(params mod.ModuleParams) error {
 		err = writer.WriteRecord(record)
 		if err != nil {
 			params.Logger.Debug("Failed to write record: %v", err)
-			return fmt.Errorf("failed to write record: %v", err)
+			return fmt.Errorf("failed to write record: %w", err)
 		}
 
 	}

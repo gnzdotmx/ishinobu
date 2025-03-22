@@ -109,7 +109,7 @@ func (m *MyModule) Run(params mod.ModuleParams) error {
 	outputFileName := utils.GetOutputFileName(m.GetName(), params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-   		return fmt.Errorf("failed to create data writer: %v", err)
+   		return fmt.Errorf("failed to create data writer: %w", err)
  	}
  	defer writer.Close()
  
@@ -133,7 +133,7 @@ func (m *MyModule) Run(params mod.ModuleParams) error {
 	err := writer.Write(record)
 	if err != nil {
 		params.Logger.Debug("failed to write record: %v", err)
-		return fmt.Errorf("failed to write record: %v", err)
+		return fmt.Errorf("failed to write record: %w", err)
 	}
 	}
 	return nil

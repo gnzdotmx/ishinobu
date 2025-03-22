@@ -2,7 +2,6 @@ package utils
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,7 +39,7 @@ func ListFiles(pattern string) ([]string, error) {
 			matches = append(matches, matched...)
 		}
 		if len(matches) == 0 {
-			return nil, errors.New("no matches found")
+			return nil, errNoMatchesFound
 		}
 		roots = matches
 	}
@@ -102,7 +101,7 @@ func CopyFile(src, dst string) error {
 // Returns a string containing the signature information or an error if verification fails.
 func GetCodeSignature(program string) (string, error) {
 	if program == "" {
-		return "", errors.New("empty program path")
+		return "", errEmptyProgramPath
 	}
 
 	// Run codesign -vv -d on the program
