@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gnzdotmx/ishinobu/pkg/utils"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 
 // WriteTestRecord writes a test record to a file

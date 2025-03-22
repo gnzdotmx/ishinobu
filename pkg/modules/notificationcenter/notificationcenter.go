@@ -38,10 +38,10 @@ func (m *NotificationCenterModule) GetDescription() string {
 }
 
 func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
-	notificatons_db_path := "/private/var/folders/*/*/0/com.apple.notificationcenter/db2/db*"
+	notifications_db_path := "/private/var/folders/*/*/0/com.apple.notificationcenter/db2/db*"
 	query := "SELECT data, delivered_date FROM record ORDER BY delivered_date DESC"
 
-	notificatons_db_paths, err := filepath.Glob(notificatons_db_path)
+	notifications_db_paths, err := filepath.Glob(notifications_db_path)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 	}
 	defer writer.Close()
 
-	for _, db_path := range notificatons_db_paths {
+	for _, db_path := range notifications_db_paths {
 		rows, err := utils.QuerySQLite(db_path, query)
 		if err != nil {
 			params.Logger.Debug("Error querying SQLite: %v", err)

@@ -14,9 +14,10 @@ import (
 	"os"
 	"path/filepath"
 
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type QuickLookModule struct {
