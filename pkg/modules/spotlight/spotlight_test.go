@@ -172,13 +172,13 @@ func verifySpotlightOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific shortcut content
-	content_str := string(content)
-	assert.Contains(t, content_str, "Mail")
-	assert.Contains(t, content_str, "Safari")
-	assert.Contains(t, content_str, "Notes")
-	assert.Contains(t, content_str, "file:///Applications/Mail.app/")
-	assert.Contains(t, content_str, "file:///Applications/Safari.app/")
-	assert.Contains(t, content_str, "file:///Applications/Notes.app/")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "Mail")
+	assert.Contains(t, contentStr, "Safari")
+	assert.Contains(t, contentStr, "Notes")
+	assert.Contains(t, contentStr, "file:///Applications/Mail.app/")
+	assert.Contains(t, contentStr, "file:///Applications/Safari.app/")
+	assert.Contains(t, contentStr, "file:///Applications/Notes.app/")
 }
 
 // Helper function to split content into lines

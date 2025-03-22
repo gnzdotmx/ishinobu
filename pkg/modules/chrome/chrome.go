@@ -207,23 +207,23 @@ func downloadsChromeHistory(location string, profileUsr string, moduleName strin
 	// Iterate over each row and create a record
 	recordData := make(map[string]interface{})
 	for rows.Next() {
-		var current_path, target_path, start_time, end_time, danger_type, opened, last_modified, referrer, tab_url, tab_referrer_url, site_url, url string
-		err := rows.Scan(&current_path, &target_path, &start_time, &end_time, &danger_type, &opened, &last_modified, &referrer, &tab_url, &tab_referrer_url, &site_url, &url)
+		var currentPath, targetPath, startTime, endTime, dangerType, opened, lastModified, referrer, tabURL, tabReferrerURL, siteURL, url string
+		err := rows.Scan(&currentPath, &targetPath, &startTime, &endTime, &dangerType, &opened, &lastModified, &referrer, &tabURL, &tabReferrerURL, &siteURL, &url)
 		if err != nil {
 			params.Logger.Debug("Error scanning row: %v", err)
 			continue
 		}
-		recordData["current_path"] = current_path
-		recordData["target_path"] = target_path
-		recordData["start_time"] = utils.ParseChromeTimestamp(start_time)
-		recordData["end_time"] = utils.ParseChromeTimestamp(end_time)
-		recordData["danger_type"] = danger_type
+		recordData["current_path"] = currentPath
+		recordData["target_path"] = targetPath
+		recordData["start_time"] = utils.ParseChromeTimestamp(startTime)
+		recordData["end_time"] = utils.ParseChromeTimestamp(endTime)
+		recordData["danger_type"] = dangerType
 		recordData["opened"] = opened
-		recordData["last_modified"] = utils.ParseChromeTimestamp(last_modified)
+		recordData["last_modified"] = utils.ParseChromeTimestamp(lastModified)
 		recordData["referrer"] = referrer
-		recordData["tab_url"] = tab_url
-		recordData["tab_referrer_url"] = tab_referrer_url
-		recordData["site_url"] = site_url
+		recordData["tab_url"] = tabURL
+		recordData["tab_referrer_url"] = tabReferrerURL
+		recordData["site_url"] = siteURL
 		recordData["url"] = url
 
 		record := utils.Record{

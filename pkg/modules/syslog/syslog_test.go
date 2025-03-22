@@ -183,14 +183,14 @@ func verifySyslogOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific syslog content
-	content_str := string(content)
-	assert.Contains(t, content_str, "kernel")
-	assert.Contains(t, content_str, "UserEventAgent")
-	assert.Contains(t, content_str, "mDNSResponder")
-	assert.Contains(t, content_str, "securityd")
-	assert.Contains(t, content_str, "MacBook-Pro.local")
-	assert.Contains(t, content_str, "System boot completed")
-	assert.Contains(t, content_str, "Captive: CNPluginHandler en0")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "kernel")
+	assert.Contains(t, contentStr, "UserEventAgent")
+	assert.Contains(t, contentStr, "mDNSResponder")
+	assert.Contains(t, contentStr, "securityd")
+	assert.Contains(t, contentStr, "MacBook-Pro.local")
+	assert.Contains(t, contentStr, "System boot completed")
+	assert.Contains(t, contentStr, "Captive: CNPluginHandler en0")
 }
 
 // Helper to split content into lines (handles different line endings)

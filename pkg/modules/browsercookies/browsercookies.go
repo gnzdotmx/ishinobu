@@ -113,11 +113,11 @@ func collectChromeCookies(location, profileUsr, moduleName string, params mod.Mo
 	recordData := make(map[string]interface{})
 	for rows.Next() {
 		var hostKey, name, value, path string
-		var creationUtc, expiresUtc, lastAccessUtc, isSecure, isHttpOnly, hasExpires, isPersistent string
+		var creationUtc, expiresUtc, lastAccessUtc, isSecure, isHTTPOnly, hasExpires, isPersistent string
 		var priority, encryptedValue, sameSite, sourceScheme string
 
 		err := rows.Scan(&hostKey, &name, &value, &path, &creationUtc, &expiresUtc,
-			&lastAccessUtc, &isSecure, &isHttpOnly, &hasExpires, &isPersistent,
+			&lastAccessUtc, &isSecure, &isHTTPOnly, &hasExpires, &isPersistent,
 			&priority, &encryptedValue, &sameSite, &sourceScheme)
 		if err != nil {
 			params.Logger.Debug("Error scanning row: %v", err)
@@ -133,7 +133,7 @@ func collectChromeCookies(location, profileUsr, moduleName string, params mod.Mo
 		recordData["expires_utc"] = utils.ParseChromeTimestamp(expiresUtc)
 		recordData["last_access_utc"] = utils.ParseChromeTimestamp(lastAccessUtc)
 		recordData["is_secure"] = isSecure
-		recordData["is_httponly"] = isHttpOnly
+		recordData["is_httponly"] = isHTTPOnly
 		recordData["has_expires"] = hasExpires
 		recordData["is_persistent"] = isPersistent
 		recordData["priority"] = priority
@@ -189,7 +189,7 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 
 	query := `
 		SELECT host, name, value, path, creationTime, expiry, lastAccessed,
-		isSecure, isHttpOnly, inBrowserElement, sameSite
+		isSecure, isHTTPOnly, inBrowserElement, sameSite
 		FROM moz_cookies
 	`
 	rows, err := utils.QuerySQLite(dst, query)
@@ -200,10 +200,10 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 	recordData := make(map[string]interface{})
 	for rows.Next() {
 		var host, name, value, path string
-		var creationTime, expiry, lastAccessed, isSecure, isHttpOnly, inBrowserElement, sameSite string
+		var creationTime, expiry, lastAccessed, isSecure, isHTTPOnly, inBrowserElement, sameSite string
 
 		err := rows.Scan(&host, &name, &value, &path, &creationTime, &expiry,
-			&lastAccessed, &isSecure, &isHttpOnly, &inBrowserElement, &sameSite)
+			&lastAccessed, &isSecure, &isHTTPOnly, &inBrowserElement, &sameSite)
 		if err != nil {
 			params.Logger.Debug("Error scanning row: %v", err)
 			continue
@@ -219,7 +219,7 @@ func collectFirefoxCookies(location, moduleName string, params mod.ModuleParams)
 		recordData["expiry"] = expiry
 		recordData["last_accessed"] = utils.ParseChromeTimestamp(lastAccessed)
 		recordData["is_secure"] = isSecure
-		recordData["is_httponly"] = isHttpOnly
+		recordData["is_httponly"] = isHTTPOnly
 		recordData["in_browser_element"] = inBrowserElement
 		recordData["same_site"] = sameSite
 

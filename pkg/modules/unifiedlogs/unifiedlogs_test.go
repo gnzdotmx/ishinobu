@@ -213,13 +213,13 @@ func verifyUnifiedLogsOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific log content
-	content_str := string(content)
-	assert.Contains(t, content_str, "sudo")
-	assert.Contains(t, content_str, "sshd")
-	assert.Contains(t, content_str, "securityd")
-	assert.Contains(t, content_str, "TTY=ttys001")
-	assert.Contains(t, content_str, "Accepted publickey")
-	assert.Contains(t, content_str, "session created")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "sudo")
+	assert.Contains(t, contentStr, "sshd")
+	assert.Contains(t, contentStr, "securityd")
+	assert.Contains(t, contentStr, "TTY=ttys001")
+	assert.Contains(t, contentStr, "Accepted publickey")
+	assert.Contains(t, contentStr, "session created")
 }
 
 // Helper function to split content into lines

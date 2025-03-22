@@ -32,7 +32,7 @@ func (c *CommandModule) Run(params ModuleParams) error {
 	start := time.Now()
 
 	// Run the command
-	cmd := exec.Command(c.Command, c.Args...)
+	cmd := exec.Command(c.Command, c.Args...) // #nosec G204
 	// Set the TZ environment variable to UTC
 	cmd.Env = append(cmd.Env, "TZ=UTC")
 	output, err := cmd.Output()

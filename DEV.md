@@ -18,7 +18,7 @@ ishinobu/
 │   ├── modules
 │   │   ├── appstore
 │   │   ├── asl
-│   │   ├── auditLog
+│   │   ├── auditlog
 │   │   └── ...
 │   └── utils
 ```

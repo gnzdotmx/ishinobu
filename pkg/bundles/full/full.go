@@ -3,7 +3,7 @@ package full
 import (
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/appstore"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/asl"
-	_ "github.com/gnzdotmx/ishinobu/pkg/modules/auditLog"
+	_ "github.com/gnzdotmx/ishinobu/pkg/modules/auditlog"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/autostart"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/browsercookies"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/chrome"

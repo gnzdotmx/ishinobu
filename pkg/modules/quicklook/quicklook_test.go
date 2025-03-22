@@ -183,13 +183,13 @@ func verifyQuickLookOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific file content
-	content_str := string(content)
-	assert.Contains(t, content_str, "presentation.pptx")
-	assert.Contains(t, content_str, "report.pdf")
-	assert.Contains(t, content_str, "vacation.jpg")
-	assert.Contains(t, content_str, "Microsoft PowerPoint")
-	assert.Contains(t, content_str, "Adobe PDF")
-	assert.Contains(t, content_str, "Preview")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "presentation.pptx")
+	assert.Contains(t, contentStr, "report.pdf")
+	assert.Contains(t, contentStr, "vacation.jpg")
+	assert.Contains(t, contentStr, "Microsoft PowerPoint")
+	assert.Contains(t, contentStr, "Adobe PDF")
+	assert.Contains(t, contentStr, "Preview")
 }
 
 // Helper function to split content into lines for this specific test

@@ -110,7 +110,7 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 			if states, ok := plistData.(map[string]interface{})["ClosedTabOrWindowPersistentStates"].([]interface{}); ok {
 				for _, state := range states {
 					if persistentState, ok := state.(map[string]interface{})["PersistentState"].(map[string]interface{}); ok {
-						if url, ok := persistentState["TabURL"].(string); ok {
+						if url, ok := persistentState["tabURL"].(string); ok {
 							tabTitle := persistentState["TabTitle"].(string)
 							dateClosed, err := utils.ParseTimestamp(persistentState["DateClosed"].(string))
 							if err != nil {

@@ -1,4 +1,4 @@
-package auditLog
+package auditlog
 
 import (
 	"encoding/json"

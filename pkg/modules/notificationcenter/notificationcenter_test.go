@@ -184,12 +184,12 @@ func verifyNotificationCenterOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific notification content
-	content_str := string(content)
-	assert.Contains(t, content_str, "com.apple.MobileSMS")
-	assert.Contains(t, content_str, "com.apple.mail")
-	assert.Contains(t, content_str, "Hello, how are you?")
-	assert.Contains(t, content_str, "Meeting reminder")
-	assert.Contains(t, content_str, "Submit project report")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "com.apple.MobileSMS")
+	assert.Contains(t, contentStr, "com.apple.mail")
+	assert.Contains(t, contentStr, "Hello, how are you?")
+	assert.Contains(t, contentStr, "Meeting reminder")
+	assert.Contains(t, contentStr, "Submit project report")
 }
 
 // Rename the function to make it unique to this test file

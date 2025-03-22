@@ -189,12 +189,12 @@ func verifyQuarantineEventsOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific event content
-	content_str := string(content)
-	assert.Contains(t, content_str, "com.google.Chrome")
-	assert.Contains(t, content_str, "com.apple.Safari")
-	assert.Contains(t, content_str, "https://example.com/download/file.dmg")
-	assert.Contains(t, content_str, "https://test.org/software/app.pkg")
-	assert.Contains(t, content_str, "jane@example.com")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "com.google.Chrome")
+	assert.Contains(t, contentStr, "com.apple.Safari")
+	assert.Contains(t, contentStr, "https://example.com/download/file.dmg")
+	assert.Contains(t, contentStr, "https://test.org/software/app.pkg")
+	assert.Contains(t, contentStr, "jane@example.com")
 }
 
 // Helper to split content into lines (handles different line endings)
