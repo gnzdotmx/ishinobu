@@ -125,7 +125,7 @@ func createMockLsofOutput(t *testing.T, params mod.ModuleParams) {
 		]
 	}`
 
-	err := os.WriteFile(outputFile, []byte(mockData), 0644)
+	err := os.WriteFile(outputFile, []byte(mockData), 0600)
 	assert.NoError(t, err)
 }
 

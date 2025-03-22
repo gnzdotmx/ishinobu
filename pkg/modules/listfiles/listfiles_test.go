@@ -139,7 +139,7 @@ func TestCollectMetadata(t *testing.T) {
 
 	testFilePath := filepath.Join(tmpDir, "test.txt")
 	testData := []byte("This is test file content for metadata collection")
-	err = os.WriteFile(testFilePath, testData, 0644)
+	err = os.WriteFile(testFilePath, testData, 0600)
 	assert.NoError(t, err)
 
 	// Get file info
@@ -240,7 +240,7 @@ func TestCalculateHashes(t *testing.T) {
 
 	testFilePath := filepath.Join(tmpDir, "hashtest.txt")
 	testData := []byte("This is a test file with known content for hash testing")
-	err = os.WriteFile(testFilePath, testData, 0644)
+	err = os.WriteFile(testFilePath, testData, 0600)
 	assert.NoError(t, err)
 
 	// Calculate hashes
@@ -251,7 +251,7 @@ func TestCalculateHashes(t *testing.T) {
 
 	// Test with empty file
 	emptyFilePath := filepath.Join(tmpDir, "empty.txt")
-	err = os.WriteFile(emptyFilePath, []byte{}, 0644)
+	err = os.WriteFile(emptyFilePath, []byte{}, 0600)
 	assert.NoError(t, err)
 
 	md5empty, sha256empty, err := calculateHashes(emptyFilePath)
@@ -292,7 +292,7 @@ func createTestFileStructure(rootDir string) error {
 	}
 
 	for path, content := range files {
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			return err
 		}
 	}

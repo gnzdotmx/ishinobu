@@ -521,12 +521,12 @@ func TestGetExtensionDomains(t *testing.T) {
 
 	// Write the files
 	networkStateData, _ := json.MarshalIndent(networkState, "", "  ")
-	if err := os.WriteFile(networkStatePath, networkStateData, 0644); err != nil {
+	if err := os.WriteFile(networkStatePath, networkStateData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, manifestData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -798,7 +798,7 @@ func TestGetExtensionName(t *testing.T) {
 	// Write manifest files
 	for path, content := range manifests {
 		data, _ := json.MarshalIndent(content, "", "  ")
-		if err := os.WriteFile(path, data, 0644); err != nil {
+		if err := os.WriteFile(path, data, 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -827,7 +827,7 @@ func TestGetExtensionName(t *testing.T) {
 		invalidManifestDir := filepath.Join(extensionsDir, "invalid", "1.0")
 		os.MkdirAll(invalidManifestDir, 0755)
 		invalidManifestPath := filepath.Join(invalidManifestDir, "manifest.json")
-		os.WriteFile(invalidManifestPath, []byte("{invalid json"), 0644)
+		os.WriteFile(invalidManifestPath, []byte("{invalid json"), 0600)
 
 		name, err := getExtensionName(tmpDir, "", "invalid")
 		assert.Error(t, err)

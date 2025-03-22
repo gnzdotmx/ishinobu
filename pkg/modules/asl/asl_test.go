@@ -258,6 +258,6 @@ func writeASLTestRecord(t *testing.T, filepath string, record utils.Record) {
 	data, err := json.MarshalIndent(jsonRecord, "", "  ")
 	assert.NoError(t, err)
 
-	err = os.WriteFile(filepath, data, 0644)
+	err = os.WriteFile(filepath, data, 0600)
 	assert.NoError(t, err)
 }

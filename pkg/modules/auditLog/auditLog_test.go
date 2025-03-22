@@ -166,7 +166,7 @@ func TestAuditLogRecordGeneration(t *testing.T) {
 	data, err := json.MarshalIndent(jsonRecord, "", "  ")
 	assert.NoError(t, err)
 
-	err = os.WriteFile(testFile, data, 0644)
+	err = os.WriteFile(testFile, data, 0600)
 	assert.NoError(t, err)
 
 	// Verify the file contents
@@ -258,6 +258,6 @@ func createMockAuditLogFile(t *testing.T, params mod.ModuleParams) {
 	data, err := json.MarshalIndent(jsonRecord, "", "  ")
 	assert.NoError(t, err)
 
-	err = os.WriteFile(filepath, data, 0644)
+	err = os.WriteFile(filepath, data, 0600)
 	assert.NoError(t, err)
 }
