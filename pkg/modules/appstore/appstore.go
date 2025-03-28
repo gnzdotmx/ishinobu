@@ -38,17 +38,51 @@ func (m *AppStoreModule) GetDescription() string {
 }
 
 func (m *AppStoreModule) Run(params mod.ModuleParams) error {
-	err := collectAppStoreHistory(m.GetName(), params)
+
+	// Paths to check for App Store history
+	historyPaths := []string{
+		"/Library/Application Support/App Store/",
+		"/Users/*/Library/Application Support/App Store/",
+	}
+	history_filename := utils.GetOutputFileName(m.GetName()+"-history", params.ExportFormat, params.OutputDir)
+	history_writer, err := utils.NewDataWriter(params.LogsDir, history_filename, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+
+	err = collectAppStoreHistory(params, historyPaths, history_writer)
 	if err != nil {
 		params.Logger.Debug("Error collecting App Store history: %v", err)
 	}
 
-	err = collectAppReceipts(m.GetName(), params)
+	// Collect receipts from installed applications
+	apps, err := filepath.Glob("/Applications/*.app")
+	if err != nil {
+		return err
+	}
+
+	receipts_filename := utils.GetOutputFileName(m.GetName()+"-receipts", params.ExportFormat, params.OutputDir)
+	receipts_writer, err := utils.NewDataWriter(params.LogsDir, receipts_filename, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+
+	err = collectAppReceipts(params, apps, receipts_writer)
 	if err != nil {
 		params.Logger.Debug("Error collecting app receipts: %v", err)
 	}
 
-	err = collectStoreConfiguration(m.GetName(), params)
+	// Paths to check for App Store configuration
+	configPaths := []string{
+		"/Library/Preferences/com.apple.appstore.plist",
+		"/Users/*/Library/Preferences/com.apple.appstore.plist",
+	}
+	store_filename := utils.GetOutputFileName(m.GetName()+"-config", params.ExportFormat, params.OutputDir)
+	store_writer, err := utils.NewDataWriter(params.LogsDir, store_filename, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = collectStoreConfiguration(params, configPaths, store_writer)
 	if err != nil {
 		params.Logger.Debug("Error collecting store configuration: %v", err)
 	}
@@ -56,19 +90,7 @@ func (m *AppStoreModule) Run(params mod.ModuleParams) error {
 	return nil
 }
 
-func collectAppStoreHistory(moduleName string, params mod.ModuleParams) error {
-	outputFileName := utils.GetOutputFileName(moduleName+"-history", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
-	// Paths to check for App Store history
-	historyPaths := []string{
-		"/Library/Application Support/App Store/",
-		"/Users/*/Library/Application Support/App Store/",
-	}
-
+func collectAppStoreHistory(params mod.ModuleParams, historyPaths []string, writer utils.DataWriter) error {
 	for _, basePath := range historyPaths {
 		paths, err := filepath.Glob(basePath)
 		if err != nil {
@@ -154,19 +176,7 @@ func collectAppStoreHistory(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func collectAppReceipts(moduleName string, params mod.ModuleParams) error {
-	outputFileName := utils.GetOutputFileName(moduleName+"-receipts", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
-	// Collect receipts from installed applications
-	apps, err := filepath.Glob("/Applications/*.app")
-	if err != nil {
-		return err
-	}
-
+func collectAppReceipts(params mod.ModuleParams, apps []string, writer utils.DataWriter) error {
 	for _, appPath := range apps {
 		receiptPath := filepath.Join(appPath, "Contents", "_MASReceipt", "receipt")
 		if _, err := os.Stat(receiptPath); err == nil {
@@ -221,19 +231,7 @@ func collectAppReceipts(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func collectStoreConfiguration(moduleName string, params mod.ModuleParams) error {
-	outputFileName := utils.GetOutputFileName(moduleName+"-config", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
-	// Paths to check for App Store configuration
-	configPaths := []string{
-		"/Library/Preferences/com.apple.appstore.plist",
-		"/Users/*/Library/Preferences/com.apple.appstore.plist",
-	}
-
+func collectStoreConfiguration(params mod.ModuleParams, configPaths []string, writer utils.DataWriter) error {
 	for _, pattern := range configPaths {
 		paths, err := filepath.Glob(pattern)
 		if err != nil {
