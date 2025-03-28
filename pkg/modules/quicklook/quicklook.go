@@ -14,9 +14,10 @@ import (
 	"os"
 	"path/filepath"
 
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type QuickLookModule struct {
@@ -125,8 +126,10 @@ func (m *QuickLookModule) Run(params mod.ModuleParams) error {
 			recordData["path"] = folder
 			recordData["name"] = fileName
 
+			lastHitDateStr := ""
 			if lastHitDate.Valid {
-				recordData["last_hit_date"] = utils.ParseChromeTimestamp(fmt.Sprintf("%d", lastHitDate.Int64))
+				lastHitDateStr = utils.ParseChromeTimestamp(fmt.Sprintf("%d", lastHitDate.Int64))
+				recordData["last_hit_date"] = lastHitDateStr
 			}
 
 			if hitCount.Valid {
@@ -153,7 +156,7 @@ func (m *QuickLookModule) Run(params mod.ModuleParams) error {
 
 			record := utils.Record{
 				CollectionTimestamp: params.CollectionTimestamp,
-				EventTimestamp:      recordData["last_hit_date"].(string),
+				EventTimestamp:      lastHitDateStr,
 				Data:                recordData,
 				SourceFile:          file,
 			}
@@ -168,7 +171,7 @@ func (m *QuickLookModule) Run(params mod.ModuleParams) error {
 	// Clean up temporary directory
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
 	}
 
 	return nil

@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestChromeModule(t *testing.T) {
@@ -109,7 +110,9 @@ func TestCollectChromeHistory(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome history
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/History")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/History")
 	assert.Equal(t, "Default", jsonData["chrome_profile"])
 	assert.Equal(t, "https://www.example.com", jsonData["url"])
 	assert.Equal(t, "Example Website", jsonData["title"])
@@ -152,7 +155,9 @@ func TestCollectChromeDownloads(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome downloads
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/History")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/History")
 	assert.Equal(t, "/Users/testuser/Downloads/test.pdf", jsonData["current_path"])
 	assert.Equal(t, "/Users/testuser/Downloads/test.pdf", jsonData["target_path"])
 	assert.NotEmpty(t, jsonData["start_time"])
@@ -195,7 +200,9 @@ func TestCollectChromeProfiles(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome profiles
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Local State")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Local State")
 	assert.Equal(t, "Default", jsonData["profile_name"])
 	assert.Equal(t, "Test User", jsonData["gaia_name"])
 	assert.NotEmpty(t, jsonData["last_used"])
@@ -235,7 +242,9 @@ func TestCollectChromeExtensions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome extensions
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/Extensions")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/Extensions")
 	assert.Equal(t, "Default", jsonData["chrome_profile"])
 	assert.Equal(t, "abcdefghijklmnopqrstuvwxyz", jsonData["extension_id"])
 	assert.Equal(t, "Test Extension", jsonData["name"])
@@ -282,7 +291,9 @@ func TestCollectChromePopupSettings(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify specific fields for Chrome popup settings
-	assert.Contains(t, jsonData["source_file"].(string), "Chrome/Default/Preferences")
+	sourceFile, ok := jsonData["source_file"].(string)
+	assert.True(t, ok, "source_file should be a string")
+	assert.Contains(t, sourceFile, "Chrome/Default/Preferences")
 	assert.Equal(t, "Default", jsonData["profile"])
 	assert.Equal(t, "https://www.example.com", jsonData["url"])
 	assert.Equal(t, "Allowed", jsonData["setting"])
@@ -520,12 +531,12 @@ func TestGetExtensionDomains(t *testing.T) {
 
 	// Write the files
 	networkStateData, _ := json.MarshalIndent(networkState, "", "  ")
-	if err := os.WriteFile(networkStatePath, networkStateData, 0644); err != nil {
+	if err := os.WriteFile(networkStatePath, networkStateData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, manifestData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -797,7 +808,7 @@ func TestGetExtensionName(t *testing.T) {
 	// Write manifest files
 	for path, content := range manifests {
 		data, _ := json.MarshalIndent(content, "", "  ")
-		if err := os.WriteFile(path, data, 0644); err != nil {
+		if err := os.WriteFile(path, data, 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -824,9 +835,17 @@ func TestGetExtensionName(t *testing.T) {
 	t.Run("Invalid manifest JSON", func(t *testing.T) {
 		// Create invalid JSON manifest
 		invalidManifestDir := filepath.Join(extensionsDir, "invalid", "1.0")
-		os.MkdirAll(invalidManifestDir, 0755)
+		err := os.MkdirAll(invalidManifestDir, 0755)
+		if err != nil {
+			t.Fatal(err, "Failed to create invalid manifest directory")
+		}
+
 		invalidManifestPath := filepath.Join(invalidManifestDir, "manifest.json")
-		os.WriteFile(invalidManifestPath, []byte("{invalid json"), 0644)
+
+		err = os.WriteFile(invalidManifestPath, []byte("{invalid json"), 0600)
+		if err != nil {
+			t.Fatal(err, "Failed to create invalid manifest file")
+		}
 
 		name, err := getExtensionName(tmpDir, "", "invalid")
 		assert.Error(t, err)

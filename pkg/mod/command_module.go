@@ -32,12 +32,12 @@ func (c *CommandModule) Run(params ModuleParams) error {
 	start := time.Now()
 
 	// Run the command
-	cmd := exec.Command(c.Command, c.Args...)
+	cmd := exec.Command(c.Command, c.Args...) // #nosec G204
 	// Set the TZ environment variable to UTC
 	cmd.Env = append(cmd.Env, "TZ=UTC")
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("error running command: %v", err)
+		return fmt.Errorf("error running command: %w", err)
 	}
 
 	// Split the output into lines
@@ -93,7 +93,7 @@ func (c *CommandModule) Run(params ModuleParams) error {
 
 		err := writer.WriteRecord(record)
 		if err != nil {
-			return fmt.Errorf("error writing record: %v", err)
+			return fmt.Errorf("error writing record: %w", err)
 		}
 	}
 

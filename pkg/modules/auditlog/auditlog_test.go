@@ -1,4 +1,4 @@
-package auditLog
+package auditlog
 
 import (
 	"encoding/json"
@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestAuditLogModule(t *testing.T) {
@@ -165,7 +166,7 @@ func TestAuditLogRecordGeneration(t *testing.T) {
 	data, err := json.MarshalIndent(jsonRecord, "", "  ")
 	assert.NoError(t, err)
 
-	err = os.WriteFile(testFile, data, 0644)
+	err = os.WriteFile(testFile, data, 0600)
 	assert.NoError(t, err)
 
 	// Verify the file contents
@@ -215,7 +216,12 @@ func recordToJSON(record utils.Record) map[string]interface{} {
 		"source_file":          record.SourceFile,
 	}
 
-	for k, v := range record.Data.(map[string]interface{}) {
+	recordMap, ok := record.Data.(map[string]interface{})
+	if !ok {
+		return jsonRecord
+	}
+
+	for k, v := range recordMap {
 		jsonRecord[k] = v
 	}
 
@@ -257,6 +263,6 @@ func createMockAuditLogFile(t *testing.T, params mod.ModuleParams) {
 	data, err := json.MarshalIndent(jsonRecord, "", "  ")
 	assert.NoError(t, err)
 
-	err = os.WriteFile(filepath, data, 0644)
+	err = os.WriteFile(filepath, data, 0600)
 	assert.NoError(t, err)
 }

@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSSHModule(t *testing.T) {
@@ -192,35 +193,45 @@ func verifySSHOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, data["keytype"], "Should have keytype")
 
 		// Track what we've found
-		srcName := data["src_name"].(string)
+		srcName, ok := data["src_name"].(string)
+		assert.True(t, ok, "src_name should be a string")
+
 		if srcName == "known_hosts" {
 			foundKnownHosts = true
 		} else if srcName == "authorized_keys" {
 			foundAuthorizedKeys = true
 		}
 
-		user := data["user"].(string)
-		if user == "testuser" {
+		user, ok := data["user"].(string)
+		assert.True(t, ok, "user should be a string")
+
+		switch user {
+		case "testuser":
 			foundTestUser = true
-		} else if user == "admin" {
+		case "admin":
 			foundAdmin = true
-		} else if user == "root" {
+		case "root":
 			foundRoot = true
 		}
 
-		host := data["host"].(string)
+		host, ok := data["host"].(string)
+		assert.True(t, ok, "host should be a string")
+
 		if host == "github.com" {
 			foundGitHub = true
 		} else if host == "192.168.1.10" {
 			foundPrivateIP = true
 		}
 
-		keytype := data["keytype"].(string)
-		if keytype == "RSA" {
+		keytype, ok := data["keytype"].(string)
+		assert.True(t, ok, "keytype should be a string")
+
+		switch keytype {
+		case "RSA":
 			foundRSA = true
-		} else if keytype == "ECDSA" {
+		case "ECDSA":
 			foundECDSA = true
-		} else if keytype == "ED25519" {
+		case "ED25519":
 			foundED25519 = true
 		}
 	}

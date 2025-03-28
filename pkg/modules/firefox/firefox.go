@@ -90,7 +90,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 	dst := "/tmp/ishinobu-Firefox-History/" + profile + "_firefox_history"
 	err = utils.CopyFile(historyDB, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -102,7 +102,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 	`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	recordData := make(map[string]interface{})
@@ -114,9 +114,11 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 			continue
 		}
 
+		vistTime := utils.ParseChromeTimestamp(visitDate)
+
 		recordData["user"] = user
 		recordData["profile"] = profile
-		recordData["visit_time"] = utils.ParseChromeTimestamp(visitDate)
+		recordData["visit_time"] = vistTime
 		recordData["title"] = title
 		recordData["url"] = url
 		recordData["visit_count"] = visitCount
@@ -126,7 +128,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["visit_time"].(string),
+			EventTimestamp:      vistTime,
 			Data:                recordData,
 			SourceFile:          historyDB,
 		}
@@ -140,7 +142,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 	// Cleanup
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-History: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-History: %w", err)
 	}
 
 	return nil
@@ -167,7 +169,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 	dst := "/tmp/ishinobu-Firefox-Downloads/" + profile + "_firefox_downloads"
 	err = utils.CopyFile(downloadsDB, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -178,7 +180,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 	`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	recordData := make(map[string]interface{})
@@ -195,11 +197,13 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 			continue
 		}
 
+		downloadStarted := utils.ParseChromeTimestamp(dateAdded)
+
 		recordData["user"] = user
 		recordData["profile"] = profile
 		recordData["download_url"] = url
 		recordData["download_path"] = contentParts[0]
-		recordData["download_started"] = utils.ParseChromeTimestamp(dateAdded)
+		recordData["download_started"] = downloadStarted
 
 		// Parse finish time from content
 		finishTimeParts := strings.Split(contentParts[2], ":")
@@ -215,7 +219,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["download_started"].(string),
+			EventTimestamp:      downloadStarted,
 			Data:                recordData,
 			SourceFile:          downloadsDB,
 		}
@@ -229,7 +233,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 	// Cleanup
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-Downloads: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-Downloads: %w", err)
 	}
 
 	return nil
@@ -265,21 +269,24 @@ func collectFirefoxExtensions(location, moduleName string, params mod.ModulePara
 
 	extensionsFile := filepath.Join(location, "extensions.json")
 	if _, err := os.Stat(extensionsFile); os.IsNotExist(err) {
-		return fmt.Errorf("extensions.json not found: %v", err)
+		return fmt.Errorf("extensions.json not found: %w", err)
 	}
 
 	data, err := os.ReadFile(extensionsFile)
 	if err != nil {
-		return fmt.Errorf("error reading extensions.json: %v", err)
+		return fmt.Errorf("error reading extensions.json: %w", err)
 	}
 
 	var extensions ExtensionsData
 	if err := json.Unmarshal(data, &extensions); err != nil {
-		return fmt.Errorf("error parsing extensions.json: %v", err)
+		return fmt.Errorf("error parsing extensions.json: %w", err)
 	}
 
 	recordData := make(map[string]interface{})
 	for _, ext := range extensions.Addons {
+
+		installDate := utils.ParseChromeTimestamp(fmt.Sprintf("%d", ext.InstallDate))
+
 		recordData["user"] = user
 		recordData["profile"] = profile
 		recordData["name"] = ext.DefaultLocale.Name
@@ -287,14 +294,14 @@ func collectFirefoxExtensions(location, moduleName string, params mod.ModulePara
 		recordData["creator"] = ext.DefaultLocale.Creator
 		recordData["description"] = ext.DefaultLocale.Description
 		recordData["update_url"] = ext.UpdateURL
-		recordData["install_date"] = utils.ParseChromeTimestamp(fmt.Sprintf("%d", ext.InstallDate))
+		recordData["install_date"] = installDate
 		recordData["last_updated"] = utils.ParseChromeTimestamp(fmt.Sprintf("%d", ext.UpdateDate))
 		recordData["source_uri"] = ext.SourceURI
 		recordData["homepage_url"] = ext.DefaultLocale.HomepageURL
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["install_date"].(string),
+			EventTimestamp:      installDate,
 			Data:                recordData,
 			SourceFile:          extensionsFile,
 		}

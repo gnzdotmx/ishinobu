@@ -38,10 +38,10 @@ func (m *NotificationCenterModule) GetDescription() string {
 }
 
 func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
-	notificatons_db_path := "/private/var/folders/*/*/0/com.apple.notificationcenter/db2/db*"
+	notificationsDBPath := "/private/var/folders/*/*/0/com.apple.notificationcenter/db2/db*"
 	query := "SELECT data, delivered_date FROM record ORDER BY delivered_date DESC"
 
-	notificatons_db_paths, err := filepath.Glob(notificatons_db_path)
+	notificationsDBPaths, err := filepath.Glob(notificationsDBPath)
 	if err != nil {
 		return err
 	}
@@ -53,8 +53,8 @@ func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 	}
 	defer writer.Close()
 
-	for _, db_path := range notificatons_db_paths {
-		rows, err := utils.QuerySQLite(db_path, query)
+	for _, dbPath := range notificationsDBPaths {
+		rows, err := utils.QuerySQLite(dbPath, query)
 		if err != nil {
 			params.Logger.Debug("Error querying SQLite: %v", err)
 			continue
@@ -62,8 +62,8 @@ func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 
 		for rows.Next() {
 			var data string
-			var delivered_date string
-			err := rows.Scan(&data, &delivered_date)
+			var deliveredDate string
+			err := rows.Scan(&data, &deliveredDate)
 			if err != nil {
 				params.Logger.Debug("Error scanning row: %v", err)
 				continue
@@ -75,9 +75,9 @@ func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 			}
 			recordData := make(map[string]interface{})
 
-			parsedDeliveredDate, err := utils.ConvertCFAbsoluteTimeToDate(delivered_date)
+			parsedDeliveredDate, err := utils.ConvertCFAbsoluteTimeToDate(deliveredDate)
 			if err == nil {
-				delivered_date = parsedDeliveredDate
+				deliveredDate = parsedDeliveredDate
 			}
 
 			strDate := fmt.Sprintf("%v", plistData["date"])
@@ -86,7 +86,7 @@ func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 				plistData["date"] = parsedDate
 			}
 
-			recordData["delivered_date"] = delivered_date
+			recordData["delivered_date"] = deliveredDate
 			recordData["date"] = parsedDate
 			if app, ok := plistData["app"].(string); ok {
 				recordData["app"] = app
@@ -114,9 +114,9 @@ func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 
 			record := utils.Record{
 				CollectionTimestamp: params.CollectionTimestamp,
-				EventTimestamp:      delivered_date,
+				EventTimestamp:      deliveredDate,
 				Data:                recordData,
-				SourceFile:          db_path,
+				SourceFile:          dbPath,
 			}
 
 			err = writer.WriteRecord(record)

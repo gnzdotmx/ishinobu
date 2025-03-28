@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNotificationCenterModule(t *testing.T) {
@@ -167,7 +168,9 @@ func verifyNotificationCenterOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "com.apple.notificationcenter")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "com.apple.notificationcenter")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})
@@ -183,12 +186,12 @@ func verifyNotificationCenterOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific notification content
-	content_str := string(content)
-	assert.Contains(t, content_str, "com.apple.MobileSMS")
-	assert.Contains(t, content_str, "com.apple.mail")
-	assert.Contains(t, content_str, "Hello, how are you?")
-	assert.Contains(t, content_str, "Meeting reminder")
-	assert.Contains(t, content_str, "Submit project report")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "com.apple.MobileSMS")
+	assert.Contains(t, contentStr, "com.apple.mail")
+	assert.Contains(t, contentStr, "Hello, how are you?")
+	assert.Contains(t, contentStr, "Meeting reminder")
+	assert.Contains(t, contentStr, "Submit project report")
 }
 
 // Rename the function to make it unique to this test file

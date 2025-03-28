@@ -10,7 +10,7 @@ import (
 func ParseBiPList(data string) (map[string]interface{}, error) {
 	// Check for empty input
 	if len(data) == 0 {
-		return nil, fmt.Errorf("empty plist data")
+		return nil, errPlistEmpty
 	}
 
 	// Initialize a decoder from the string data
@@ -19,7 +19,7 @@ func ParseBiPList(data string) (map[string]interface{}, error) {
 	// Decode the plist into a generic map
 	var result map[string]interface{}
 	if err := decoder.Decode(&result); err != nil {
-		return nil, fmt.Errorf("error decoding plist: %v", err)
+		return nil, fmt.Errorf("error decoding plist: %w", err)
 	}
 
 	return result, nil

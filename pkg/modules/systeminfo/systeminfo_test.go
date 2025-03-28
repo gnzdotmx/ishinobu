@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSystemInfoModule(t *testing.T) {
@@ -151,7 +152,13 @@ func verifySystemInfoOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific values
+	productVersion, ok := data["product_version"].(string)
+	assert.True(t, ok, "Product version should be a string")
+
+	sipStatus, ok := data["sip_status"].(string)
+	assert.True(t, ok, "SIP status should be a string")
+
 	assert.Contains(t, []string{"Light", "Dark"}, data["system_appearance"], "System appearance should be Light or Dark")
-	assert.Contains(t, data["product_version"].(string), ".", "Product version should be in format x.y.z")
-	assert.Contains(t, data["sip_status"].(string), "System Integrity Protection", "SIP status should mention System Integrity Protection")
+	assert.Contains(t, productVersion, ".", "Product version should be in format x.y.z")
+	assert.Contains(t, sipStatus, "System Integrity Protection", "SIP status should mention System Integrity Protection")
 }

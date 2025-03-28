@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: ".github/workflows"
+    schedule:
+      interval: "weekly"
+    groups:
+      action-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      action-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    labels:
+      - "chore"
+      - "dependabot"
+      - "github-actions"
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      gomod-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      gomod-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    labels:
+      - "chore"
+      - "dependabot"
+      - "go"

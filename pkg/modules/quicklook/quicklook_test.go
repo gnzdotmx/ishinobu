@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestQuickLookModule(t *testing.T) {
@@ -164,7 +165,9 @@ func verifyQuickLookOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "com.apple.QuickLook.thumbnailcache")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "com.apple.QuickLook.thumbnailcache")
 
 		// Check data fields
 		data, ok := record["data"].(map[string]interface{})
@@ -182,13 +185,13 @@ func verifyQuickLookOutput(t *testing.T, outputFile string) {
 	}
 
 	// Verify specific file content
-	content_str := string(content)
-	assert.Contains(t, content_str, "presentation.pptx")
-	assert.Contains(t, content_str, "report.pdf")
-	assert.Contains(t, content_str, "vacation.jpg")
-	assert.Contains(t, content_str, "Microsoft PowerPoint")
-	assert.Contains(t, content_str, "Adobe PDF")
-	assert.Contains(t, content_str, "Preview")
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "presentation.pptx")
+	assert.Contains(t, contentStr, "report.pdf")
+	assert.Contains(t, contentStr, "vacation.jpg")
+	assert.Contains(t, contentStr, "Microsoft PowerPoint")
+	assert.Contains(t, contentStr, "Adobe PDF")
+	assert.Contains(t, contentStr, "Preview")
 }
 
 // Helper function to split content into lines for this specific test

@@ -7,9 +7,10 @@ package netcfgplists
 import (
 	"os"
 
+	"howett.net/plist"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"howett.net/plist"
 )
 
 type NetworkConfigPlistsModule struct {

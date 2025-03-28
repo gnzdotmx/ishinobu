@@ -121,10 +121,14 @@ func (m *UsersModule) Run(params mod.ModuleParams) error {
 		// Get file timestamps
 		fileInfo, err := os.Stat(userDir)
 		if err == nil {
-			stat := fileInfo.Sys().(*syscall.Stat_t)
-			recordData["mtime"] = time.Unix(stat.Mtimespec.Sec, stat.Mtimespec.Nsec).UTC().Format(utils.TimeFormat)
-			recordData["atime"] = time.Unix(stat.Atimespec.Sec, stat.Atimespec.Nsec).UTC().Format(utils.TimeFormat)
-			recordData["ctime"] = time.Unix(stat.Ctimespec.Sec, stat.Ctimespec.Nsec).UTC().Format(utils.TimeFormat)
+			switch stat := fileInfo.Sys().(type) {
+			case *syscall.Stat_t:
+				recordData["mtime"] = time.Unix(stat.Mtimespec.Sec, stat.Mtimespec.Nsec).UTC().Format(utils.TimeFormat)
+				recordData["atime"] = time.Unix(stat.Atimespec.Sec, stat.Atimespec.Nsec).UTC().Format(utils.TimeFormat)
+				recordData["ctime"] = time.Unix(stat.Ctimespec.Sec, stat.Ctimespec.Nsec).UTC().Format(utils.TimeFormat)
+			default:
+				params.Logger.Debug("Invalid file info type: %T", fileInfo.Sys())
+			}
 		}
 
 		record := utils.Record{
@@ -166,11 +170,17 @@ func getDeletedUsers() ([]DeletedUser, error) {
 	if deletedUsersData, ok := plistData["deletedUsers"].([]interface{}); ok {
 		for _, userData := range deletedUsersData {
 			if userMap, ok := userData.(map[string]interface{}); ok {
+
+				date := userMap["date"].(string)
+				uniqueID := userMap["dsAttrTypeStandard:UniqueID"].(string)
+				realName := userMap["dsAttrTypeStandard:RealName"].(string)
+				name := userMap["name"].(string)
+
 				user := DeletedUser{
-					DateDeleted: userMap["date"].(string),
-					UniqueID:    userMap["dsAttrTypeStandard:UniqueID"].(string),
-					Name:        userMap["name"].(string),
-					RealName:    userMap["dsAttrTypeStandard:RealName"].(string),
+					DateDeleted: date,
+					UniqueID:    uniqueID,
+					Name:        name,
+					RealName:    realName,
 				}
 				deletedUsers = append(deletedUsers, user)
 			}
@@ -200,7 +210,7 @@ func getAdminUsers() ([]string, error) {
 		return adminUsers, nil
 	}
 
-	return nil, fmt.Errorf("no admin users found in plist")
+	return nil, errNoAdminUsers
 }
 
 func getLastLoggedInUser() (string, error) {
@@ -219,7 +229,7 @@ func getLastLoggedInUser() (string, error) {
 		return lastUser, nil
 	}
 
-	return "", fmt.Errorf("last user not found in plist")
+	return "", errLastUserNotFound
 }
 
 type UserInfo struct {

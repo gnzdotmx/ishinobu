@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestListFilesModule(t *testing.T) {
@@ -138,7 +139,7 @@ func TestCollectMetadata(t *testing.T) {
 
 	testFilePath := filepath.Join(tmpDir, "test.txt")
 	testData := []byte("This is test file content for metadata collection")
-	err = os.WriteFile(testFilePath, testData, 0644)
+	err = os.WriteFile(testFilePath, testData, 0600)
 	assert.NoError(t, err)
 
 	// Get file info
@@ -239,7 +240,7 @@ func TestCalculateHashes(t *testing.T) {
 
 	testFilePath := filepath.Join(tmpDir, "hashtest.txt")
 	testData := []byte("This is a test file with known content for hash testing")
-	err = os.WriteFile(testFilePath, testData, 0644)
+	err = os.WriteFile(testFilePath, testData, 0600)
 	assert.NoError(t, err)
 
 	// Calculate hashes
@@ -250,7 +251,7 @@ func TestCalculateHashes(t *testing.T) {
 
 	// Test with empty file
 	emptyFilePath := filepath.Join(tmpDir, "empty.txt")
-	err = os.WriteFile(emptyFilePath, []byte{}, 0644)
+	err = os.WriteFile(emptyFilePath, []byte{}, 0600)
 	assert.NoError(t, err)
 
 	md5empty, sha256empty, err := calculateHashes(emptyFilePath)
@@ -291,7 +292,7 @@ func createTestFileStructure(rootDir string) error {
 	}
 
 	for path, content := range files {
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			return err
 		}
 	}
@@ -333,15 +334,19 @@ func verifyListFilesOutput(t *testing.T, outputFile string) {
 		assert.NotEmpty(t, data["mode"], "Should have mode")
 
 		// Check if we found our test files
-		name, _ := data["name"].(string)
+		name, ok := data["name"].(string)
+		if !ok {
+			continue
+		}
 
-		if name == "test.sh" {
+		switch name {
+		case "test.sh":
 			foundScriptFile = true
 			assert.NotEmpty(t, data["md5"], "Script file should have MD5")
 			assert.NotEmpty(t, data["sha256"], "Script file should have SHA256")
-		} else if name == "config.plist" {
+		case "config.plist":
 			foundConfigFile = true
-		} else if name == "system.log" {
+		case "system.log":
 			foundLogFile = true
 		}
 	}

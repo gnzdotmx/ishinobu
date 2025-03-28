@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSafariModule(t *testing.T) {
@@ -289,7 +290,9 @@ func verifySafariVisitOutput(t *testing.T, outputFile, userProfile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "History.db")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "History.db")
 
 		data, ok := record["data"].(map[string]interface{})
 		assert.True(t, ok)
@@ -343,7 +346,9 @@ func verifySafariDownloadsOutput(t *testing.T, outputFile, userProfile string) {
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "Downloads.plist")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "Downloads.plist")
 
 		data, ok := record["data"].(map[string]interface{})
 		assert.True(t, ok)
@@ -390,7 +395,9 @@ func verifySafariExtensionsOutput(t *testing.T, outputFile, userProfile string) 
 		assert.NotEmpty(t, record["collection_timestamp"])
 		assert.NotEmpty(t, record["event_timestamp"])
 		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"].(string), "Extensions.plist")
+		sourceFile, ok := record["source_file"].(string)
+		assert.True(t, ok, "Source file should be a string")
+		assert.Contains(t, sourceFile, "Extensions.plist")
 
 		data, ok := record["data"].(map[string]interface{})
 		assert.True(t, ok)

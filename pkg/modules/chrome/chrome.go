@@ -113,13 +113,13 @@ func visitChromeHistory(location string, profileUsr string, moduleName string, p
 	dst := "/tmp/ishinobu/" + userProfile + "_chrome_history"
 	err = utils.CopyFile(profile, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := "SELECT urls.url, urls.title, visits.visit_time, visits.from_visit, visits.transition FROM urls INNER JOIN visits ON urls.id = visits.url ORDER BY visits.visit_time DESC;"
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	// Iterate over each row and create a record
@@ -132,16 +132,18 @@ func visitChromeHistory(location string, profileUsr string, moduleName string, p
 			continue
 		}
 
+		visitTimeStr := utils.ParseChromeTimestamp(visitTime)
+
 		recordData["chrome_profile"] = profileUsr
 		recordData["url"] = url
 		recordData["title"] = title
-		recordData["visit_time"] = utils.ParseChromeTimestamp(visitTime)
+		recordData["visit_time"] = visitTimeStr
 		recordData["from_visit"] = fromVisit
 		recordData["transition"] = transition
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["visit_time"].(string),
+			EventTimestamp:      visitTimeStr,
 			Data:                recordData,
 			SourceFile:          location + "/" + profileUsr + "/History",
 		}
@@ -154,7 +156,7 @@ func visitChromeHistory(location string, profileUsr string, moduleName string, p
 	// Remove temporary folder to store collected logs
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
 	}
 	return nil
 }
@@ -179,7 +181,7 @@ func downloadsChromeHistory(location string, profileUsr string, moduleName strin
 	dst := "/tmp/ishinobu/" + userProfile + "_download_chrome_history"
 	err = utils.CopyFile(profile, dst)
 	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
+		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	query := `
@@ -201,34 +203,37 @@ func downloadsChromeHistory(location string, profileUsr string, moduleName strin
 		`
 	rows, err := utils.QuerySQLite(dst, query)
 	if err != nil {
-		return fmt.Errorf("error querying SQLite: %v", err)
+		return fmt.Errorf("error querying SQLite: %w", err)
 	}
 
 	// Iterate over each row and create a record
 	recordData := make(map[string]interface{})
 	for rows.Next() {
-		var current_path, target_path, start_time, end_time, danger_type, opened, last_modified, referrer, tab_url, tab_referrer_url, site_url, url string
-		err := rows.Scan(&current_path, &target_path, &start_time, &end_time, &danger_type, &opened, &last_modified, &referrer, &tab_url, &tab_referrer_url, &site_url, &url)
+		var currentPath, targetPath, startTime, endTime, dangerType, opened, lastModified, referrer, tabURL, tabReferrerURL, siteURL, url string
+		err := rows.Scan(&currentPath, &targetPath, &startTime, &endTime, &dangerType, &opened, &lastModified, &referrer, &tabURL, &tabReferrerURL, &siteURL, &url)
 		if err != nil {
 			params.Logger.Debug("Error scanning row: %v", err)
 			continue
 		}
-		recordData["current_path"] = current_path
-		recordData["target_path"] = target_path
-		recordData["start_time"] = utils.ParseChromeTimestamp(start_time)
-		recordData["end_time"] = utils.ParseChromeTimestamp(end_time)
-		recordData["danger_type"] = danger_type
+
+		startTimeStr := utils.ParseChromeTimestamp(startTime)
+
+		recordData["current_path"] = currentPath
+		recordData["target_path"] = targetPath
+		recordData["start_time"] = startTimeStr
+		recordData["end_time"] = utils.ParseChromeTimestamp(endTime)
+		recordData["danger_type"] = dangerType
 		recordData["opened"] = opened
-		recordData["last_modified"] = utils.ParseChromeTimestamp(last_modified)
+		recordData["last_modified"] = utils.ParseChromeTimestamp(lastModified)
 		recordData["referrer"] = referrer
-		recordData["tab_url"] = tab_url
-		recordData["tab_referrer_url"] = tab_referrer_url
-		recordData["site_url"] = site_url
+		recordData["tab_url"] = tabURL
+		recordData["tab_referrer_url"] = tabReferrerURL
+		recordData["site_url"] = siteURL
 		recordData["url"] = url
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["start_time"].(string),
+			EventTimestamp:      startTimeStr,
 			Data:                recordData,
 			SourceFile:          profile,
 		}
@@ -241,7 +246,7 @@ func downloadsChromeHistory(location string, profileUsr string, moduleName strin
 	// Remove temporary folder to store collected logs
 	err = os.RemoveAll(ishinobuDir)
 	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %v", err)
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
 	}
 	return nil
 }
@@ -355,13 +360,13 @@ func ChromeProfiles(location string, moduleName string, params mod.ModuleParams)
 func getChromeExtensions(location string, profileUsr string, moduleName string, params mod.ModuleParams) error {
 	extensions, err := os.ReadDir(filepath.Join(location, profileUsr, "Extensions/"))
 	if err != nil {
-		return fmt.Errorf("failed to read directory: %v", err)
+		return fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	outputFileName := utils.GetOutputFileName(moduleName+"-extensions-"+profileUsr, params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create data writer: %v", err)
+		return fmt.Errorf("failed to create data writer: %w", err)
 	}
 
 	for _, extension := range extensions {
@@ -437,32 +442,65 @@ func getPopupChromeSettings(location string, profileUsr string, moduleName strin
 	preferencesFile := filepath.Join(location, profileUsr, "Preferences")
 	data, err := os.ReadFile(preferencesFile)
 	if err != nil {
-		return fmt.Errorf("failed to read preferences file: %v", err)
+		return fmt.Errorf("failed to read preferences file: %w", err)
 	}
 
 	// unmarshal the JSON data
 	var preferences map[string]interface{}
 	if err := json.Unmarshal(data, &preferences); err != nil {
-		return fmt.Errorf("failed to parse JSON: %v", err)
+		return fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	outputFileName := utils.GetOutputFileName(moduleName+"-settings-popup-"+profileUsr, params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create data writer: %v", err)
+		return fmt.Errorf("failed to create data writer: %w", err)
 	}
 
 	// collect and display popup settings
 	recordData := make(map[string]interface{})
-	for key, value := range preferences["profile"].(map[string]interface{})["content_settings"].(map[string]interface{})["exceptions"].(map[string]interface{})["popups"].(map[string]interface{}) {
+
+	preferencesMap, ok := preferences["profile"].(map[string]interface{})
+	if !ok {
+		params.Logger.Debug("No profile data found")
+		return nil
+	}
+
+	contentSettings, ok := preferencesMap["content_settings"].(map[string]interface{})
+	if !ok {
+		params.Logger.Debug("No content settings data found")
+		return nil
+	}
+
+	exceptions, ok := contentSettings["exceptions"].(map[string]interface{})
+	if !ok {
+		params.Logger.Debug("No exceptions data found")
+		return nil
+	}
+
+	popups, ok := exceptions["popups"].(map[string]interface{})
+	if !ok {
+		params.Logger.Debug("No popups data found")
+		return nil
+	}
+
+	for key, value := range popups {
 		recordData["profile"] = profileUsr
 		recordData["url"] = key
-		recordData["setting"] = value.(map[string]interface{})["setting"]
-		if value.(map[string]interface{})["last_modified"] != nil {
-			recordData["last_modified"] = utils.ParseChromeTimestamp(value.(map[string]interface{})["last_modified"].(string))
-		} else {
-			recordData["last_modified"] = params.CollectionTimestamp
+
+		valueMap, ok := value.(map[string]interface{})
+		if !ok {
+			params.Logger.Debug("Invalid value: %v", value)
 		}
+
+		recordData["setting"] = valueMap["setting"]
+
+		lastModified := params.CollectionTimestamp
+		if lastModifiedStr, ok := valueMap["last_modified"].(string); ok {
+			lastModified = utils.ParseChromeTimestamp(lastModifiedStr)
+		}
+
+		recordData["last_modified"] = lastModified
 
 		if recordData["setting"] == "1" {
 			recordData["setting"] = "Allowed"
@@ -472,7 +510,7 @@ func getPopupChromeSettings(location string, profileUsr string, moduleName strin
 
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      recordData["last_modified"].(string),
+			EventTimestamp:      lastModified,
 			Data:                recordData,
 			SourceFile:          preferencesFile,
 		}
@@ -544,58 +582,9 @@ func getExtensionDomains(location string, profileUsr string, moduleName string, 
 			// Process active connections
 			if servers, ok := httpProps["servers"].([]interface{}); ok {
 				for _, serverInterface := range servers {
-					server, ok := serverInterface.(map[string]interface{})
-					if !ok {
+					recordData := processServerInterface(serverInterface, params, location, profileUsr)
+					if recordData == nil {
 						continue
-					}
-
-					// Process anonymization data (extension IDs)
-					anonymizationArray, ok := server["anonymization"].([]interface{})
-					if !ok || len(anonymizationArray) == 0 {
-						continue
-					}
-
-					// Decode the anonymization data to get extension ID
-					extID := decodeAnonymization(fmt.Sprintf("%v", anonymizationArray[0]))
-					if extID == "" {
-						continue
-					}
-
-					// Extract domain from server field
-					serverStr, ok := server["server"].(string)
-					if !ok {
-						continue
-					}
-
-					domain := cleanServerURL(serverStr)
-
-					// Get timestamp using the standard utils.ParseChromeTimestamp function
-					var timestamp string
-					if spdy, ok := server["supports_spdy"].(float64); ok {
-						// Convert to string first as utils.ParseChromeTimestamp expects a string
-						spdyStr := fmt.Sprintf("%d", int64(spdy))
-						timestamp = utils.ParseChromeTimestamp(spdyStr)
-						if timestamp == "" {
-							timestamp = params.CollectionTimestamp
-						}
-					} else {
-						timestamp = params.CollectionTimestamp
-					}
-
-					// Get extension name
-					extensionName, err := getExtensionName(location, profileUsr, extID)
-					if err != nil {
-						extensionName = extID
-					}
-
-					// Create record
-					recordData := map[string]interface{}{
-						"profile":              profileUsr,
-						"extension_id":         extID,
-						"extension_name":       extensionName,
-						"domain":               domain,
-						"connection_type":      "Active",
-						"last_connection_time": timestamp,
 					}
 
 					connections = append(connections, recordData)
@@ -666,9 +655,14 @@ func getExtensionDomains(location string, profileUsr string, moduleName string, 
 
 	// Write all connections to the output file
 	for _, connData := range connections {
+		lastConnectionTime, ok := connData["last_connection_time"].(string)
+		if !ok {
+			params.Logger.Debug("Invalid last connection time: %v", connData["last_connection_time"])
+		}
+
 		record := utils.Record{
 			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      connData["last_connection_time"].(string),
+			EventTimestamp:      lastConnectionTime,
 			Data:                connData,
 			SourceFile:          networkStatePath,
 		}
@@ -683,6 +677,63 @@ func getExtensionDomains(location string, profileUsr string, moduleName string, 
 		profileUsr, len(connections))
 
 	return nil
+}
+
+func processServerInterface(serverInterface interface{}, params mod.ModuleParams, location string, profileUsr string) map[string]interface{} {
+	server, ok := serverInterface.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	// Process anonymization data (extension IDs)
+	anonymizationArray, ok := server["anonymization"].([]interface{})
+	if !ok || len(anonymizationArray) == 0 {
+		return nil
+	}
+
+	// Decode the anonymization data to get extension ID
+	extID := decodeAnonymization(fmt.Sprintf("%v", anonymizationArray[0]))
+	if extID == "" {
+		return nil
+	}
+
+	// Extract domain from server field
+	serverStr, ok := server["server"].(string)
+	if !ok {
+		return nil
+	}
+
+	domain := cleanServerURL(serverStr)
+
+	// Get timestamp using the standard utils.ParseChromeTimestamp function
+	var timestamp string
+	if spdy, ok := server["supports_spdy"].(float64); ok {
+		// Convert to string first as utils.ParseChromeTimestamp expects a string
+		spdyStr := fmt.Sprintf("%d", int64(spdy))
+		timestamp = utils.ParseChromeTimestamp(spdyStr)
+		if timestamp == "" {
+			timestamp = params.CollectionTimestamp
+		}
+	} else {
+		timestamp = params.CollectionTimestamp
+	}
+
+	// Get extension name
+	extensionName, err := getExtensionName(location, profileUsr, extID)
+	if err != nil {
+		extensionName = extID
+	}
+
+	// Create record
+	recordData := map[string]interface{}{
+		"profile":              profileUsr,
+		"extension_id":         extID,
+		"extension_name":       extensionName,
+		"domain":               domain,
+		"connection_type":      "Active",
+		"last_connection_time": timestamp,
+	}
+	return recordData
 }
 
 // Helper function to decode the anonymization string to extract extension ID
@@ -723,7 +774,7 @@ func getExtensionName(location string, profileUsr string, extensionID string) (s
 	manifestPath := filepath.Join(location, profileUsr, "Extensions", extensionID, "*", "manifest.json")
 	manifestFiles, err := utils.ListFiles(manifestPath)
 	if err != nil || len(manifestFiles) == 0 {
-		return extensionID, fmt.Errorf("manifest not found for extension: %s", extensionID)
+		return extensionID, fmt.Errorf("%w: %s", errManifestNotFound, extensionID)
 	}
 
 	// Read manifest file

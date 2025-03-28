@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -59,13 +60,13 @@ func run(cmd *cobra.Command, args []string) error {
 
 	// Create a temporary folder to store log files
 	if err := os.MkdirAll(logsDir, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create directory %s: %v", logsDir, err)
+		return fmt.Errorf("failed to create directory %s: %w", logsDir, err)
 	}
 
 	// Get hostnames
 	hostname, err := utils.GetHostname()
 	if err != nil {
-		return fmt.Errorf("failed to get hostname: %v", err)
+		return fmt.Errorf("failed to get hostname: %w", err)
 	}
 
 	// Collection timestamp

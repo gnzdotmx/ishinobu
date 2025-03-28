@@ -94,15 +94,15 @@ func (m *SSHModule) Run(params mod.ModuleParams) error {
 	return nil
 }
 
-func parseSSHFile(filePath, username, srcName string, params mod.ModuleParams, writer *utils.DataWriter) error {
+func parseSSHFile(filePath, username, srcName string, params mod.ModuleParams, writer utils.DataWriter) error {
 	// Run ssh-keygen to get key information
 	cmd := exec.Command("ssh-keygen", "-l", "-f", filePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(output), "is not a public key file") {
-			return fmt.Errorf("file is not a public key file: %v", err)
+			return fmt.Errorf("file is not a public key file: %w", err)
 		}
-		return fmt.Errorf("error running ssh-keygen: %v", err)
+		return fmt.Errorf("error running ssh-keygen: %w", err)
 	}
 
 	// Process each line of output
