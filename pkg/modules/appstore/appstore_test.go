@@ -133,7 +133,7 @@ func TestCollectAppReceipts(t *testing.T) {
 	}
 
 	// Create mock receipt file
-	err = os.WriteFile(receiptPath, []byte("mock receipt data"), 0644)
+	err = os.WriteFile(receiptPath, []byte("mock receipt data"), 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestCollectAppReceipts(t *testing.T) {
     <string>1.0.0</string>
 </dict>
 </plist>`
-	err = os.WriteFile(infoPlistPath, []byte(infoPlistData), 0644)
+	err = os.WriteFile(infoPlistPath, []byte(infoPlistData), 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func TestCollectStoreConfiguration(t *testing.T) {
     <string>always</string>
 </dict>
 </plist>`
-	err = os.WriteFile(plistPath, []byte(plistData), 0644)
+	err = os.WriteFile(plistPath, []byte(plistData), 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +280,7 @@ func createMockSQLiteDB(dbPath string) error {
 	// Create the database file
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return fmt.Errorf("failed to open database: %v", err)
+		return fmt.Errorf("failed to open database: %w", err)
 	}
 	defer db.Close()
 
@@ -300,7 +300,7 @@ func createMockSQLiteDB(dbPath string) error {
 
 	_, err = db.Exec(createTableSQL)
 	if err != nil {
-		return fmt.Errorf("failed to create table: %v", err)
+		return fmt.Errorf("failed to create table: %w", err)
 	}
 
 	// Insert test data
@@ -322,7 +322,7 @@ func createMockSQLiteDB(dbPath string) error {
 		"2024-03-20T10:03:00Z",
 	)
 	if err != nil {
-		return fmt.Errorf("failed to insert test data: %v", err)
+		return fmt.Errorf("failed to insert test data: %w", err)
 	}
 
 	return nil
