@@ -1,7 +1,9 @@
 package appstore
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,65 +16,6 @@ import (
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 
-func TestAppStoreModule(t *testing.T) {
-	// Create temporary directory for test outputs
-	tmpDir, err := os.MkdirTemp("", "appstore_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	logger := testutils.NewTestLogger()
-
-	// Setup test parameters
-	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
-		Logger:              *logger,
-	}
-
-	// Create module instance with proper initialization
-	module := &AppStoreModule{
-		Name:        "appstore",
-		Description: "Collects App Store installation history and receipt information",
-	}
-
-	// Test GetName
-	t.Run("GetName", func(t *testing.T) {
-		assert.Equal(t, "appstore", module.GetName())
-	})
-
-	// Test GetDescription
-	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "App Store")
-	})
-
-	// Test Run method
-	t.Run("Run", func(t *testing.T) {
-		// Create mock output files directly
-		createMockOutputFiles(t, params)
-
-		// Check if output files were created
-		expectedFiles := []string{
-			"appstore-history",
-			"appstore-receipts",
-			"appstore-config",
-		}
-
-		for _, file := range expectedFiles {
-			pattern := filepath.Join(tmpDir, file+"*.json")
-			matches, err := filepath.Glob(pattern)
-			assert.NoError(t, err)
-			assert.NotEmpty(t, matches, "Expected output file not found: "+file)
-
-			// Verify file contents
-			verifyFileContents(t, matches[0], file)
-		}
-	})
-}
-
 func TestCollectAppStoreHistory(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "appstore_history_test")
 	if err != nil {
@@ -80,37 +23,79 @@ func TestCollectAppStoreHistory(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Create necessary directory structure
+	appStoreDir := filepath.Join(tmpDir, "Library", "Application Support", "App Store")
+	err = os.MkdirAll(appStoreDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create output directory
+	outputDir := filepath.Join(tmpDir, "output")
+	err = os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create logs directory
+	logsDir := filepath.Join(tmpDir, "logs")
+	err = os.MkdirAll(logsDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a mock SQLite database with test data
+	dbPath := filepath.Join(appStoreDir, "storeagent.db")
+	err = createMockSQLiteDB(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	logger := testutils.NewTestLogger()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
+		OutputDir:           outputDir,
+		LogsDir:             logsDir,
 		ExportFormat:        "json",
 		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
 	}
 
-	// Create mock output files directly
-	createMockHistoryFile(t, params)
+	history_writer, err := utils.NewDataWriter(params.LogsDir, "appstore-history.json", params.ExportFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "appstore-history*.json")
+	err = collectAppStoreHistory(params, []string{appStoreDir}, history_writer)
+	assert.NoError(t, err)
+
+	// Close the writer to ensure all data is written
+	err = history_writer.Close()
+	assert.NoError(t, err)
+
+	// Give the system a moment to ensure the file is written
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify output file contents
+	pattern := filepath.Join(params.LogsDir, "appstore-history*.json")
 	matches, err := filepath.Glob(pattern)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
+	assert.NotEmpty(t, matches, "Expected output file not found")
 
-	// Verify file contents
+	// Read the file to ensure it exists and is not empty
 	content, err := os.ReadFile(matches[0])
 	assert.NoError(t, err)
+	assert.NotEmpty(t, content, "Expected content in output file")
 
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
+	// Load the first row of the file as a record
+	var record utils.Record
+	err = json.Unmarshal(content, &record)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, record, "Expected record in output file")
 
-	// Verify expected fields
-	assert.Equal(t, params.CollectionTimestamp, jsonData["collection_timestamp"])
-	assert.Equal(t, params.CollectionTimestamp, jsonData["event_timestamp"])
-	assert.Equal(t, "mock_source", jsonData["source_file"])
-	assert.Equal(t, "data", jsonData["test"])
+	// Verify the record contents
+	assert.Equal(t, params.CollectionTimestamp, record.CollectionTimestamp)
+	assert.NotEmpty(t, record.EventTimestamp)
+	assert.Equal(t, dbPath, record.SourceFile)
 }
 
 func TestCollectAppReceipts(t *testing.T) {
@@ -120,37 +105,93 @@ func TestCollectAppReceipts(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Create necessary directories
+	outputDir := filepath.Join(tmpDir, "output")
+	logsDir := filepath.Join(tmpDir, "logs")
+	err = os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.MkdirAll(logsDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create mock app with receipt
+	appPath := filepath.Join(tmpDir, "TestApp.app")
+	receiptPath := filepath.Join(appPath, "Contents", "_MASReceipt", "receipt")
+	err = os.MkdirAll(filepath.Dir(receiptPath), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create mock Info.plist
+	infoPlistPath := filepath.Join(appPath, "Contents", "Info.plist")
+	err = os.MkdirAll(filepath.Dir(infoPlistPath), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create mock receipt file
+	err = os.WriteFile(receiptPath, []byte("mock receipt data"), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create mock Info.plist
+	infoPlistData := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.example.testapp</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+</dict>
+</plist>`
+	err = os.WriteFile(infoPlistPath, []byte(infoPlistData), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	logger := testutils.NewTestLogger()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
+		OutputDir:           outputDir,
+		LogsDir:             logsDir,
 		ExportFormat:        "json",
 		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
 	}
 
-	// Create mock output file directly
-	createMockReceiptsFile(t, params)
+	receipts_writer, err := utils.NewDataWriter(params.LogsDir, "appstore-receipts.json", params.ExportFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "appstore-receipts*.json")
+	err = collectAppReceipts(params, []string{appPath}, receipts_writer)
+	assert.NoError(t, err)
+
+	// Verify output file contents
+	pattern := filepath.Join(params.LogsDir, "appstore-receipts*.json")
 	matches, err := filepath.Glob(pattern)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
+	assert.NotEmpty(t, matches, "Expected output file not found")
 
-	// Verify file contents
+	// Read the file to ensure it exists and is not empty
 	content, err := os.ReadFile(matches[0])
 	assert.NoError(t, err)
+	assert.NotEmpty(t, content, "Expected content in output file")
 
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
+	// Load the first row of the file as a record
+	var record utils.Record
+	err = json.Unmarshal(content, &record)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, record, "Expected record in output file")
 
-	// Verify expected fields
-	assert.Equal(t, params.CollectionTimestamp, jsonData["collection_timestamp"])
-	assert.Equal(t, params.CollectionTimestamp, jsonData["event_timestamp"])
-	assert.Equal(t, "mock_source", jsonData["source_file"])
-	assert.Equal(t, "data", jsonData["test"])
+	// Verify the record contents
+	assert.Equal(t, params.CollectionTimestamp, record.CollectionTimestamp)
+	assert.NotEmpty(t, record.EventTimestamp)
+	assert.Contains(t, record.SourceFile, appPath)
 }
 
 func TestCollectStoreConfiguration(t *testing.T) {
@@ -160,112 +201,129 @@ func TestCollectStoreConfiguration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Create necessary directories
+	outputDir := filepath.Join(tmpDir, "output")
+	logsDir := filepath.Join(tmpDir, "logs")
+	err = os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.MkdirAll(logsDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create mock plist file
+	plistPath := filepath.Join(tmpDir, "com.apple.appstore.plist")
+	plistData := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>AutomaticDownloadEnabled</key>
+    <true/>
+    <key>AutomaticUpdateEnabled</key>
+    <true/>
+    <key>FreeDownloadsRequirePassword</key>
+    <true/>
+    <key>LastUpdateCheck</key>
+    <string>2024-03-20T10:00:00Z</string>
+    <key>PasswordSetting</key>
+    <string>always</string>
+</dict>
+</plist>`
+	err = os.WriteFile(plistPath, []byte(plistData), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	logger := testutils.NewTestLogger()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
+		OutputDir:           outputDir,
+		LogsDir:             logsDir,
 		ExportFormat:        "json",
 		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
 	}
 
-	// Create mock output file directly
-	createMockConfigFile(t, params)
+	store_writer, err := utils.NewDataWriter(params.LogsDir, "appstore-config.json", params.ExportFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "appstore-config*.json")
+	err = collectStoreConfiguration(params, []string{plistPath}, store_writer)
+	assert.NoError(t, err)
+
+	// Verify output file contents
+	pattern := filepath.Join(params.LogsDir, "appstore-config*.json")
 	matches, err := filepath.Glob(pattern)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
+	assert.NotEmpty(t, matches, "Expected output file not found")
 
-	// Verify file contents
+	// Read the file to ensure it exists and is not empty
 	content, err := os.ReadFile(matches[0])
 	assert.NoError(t, err)
+	assert.NotEmpty(t, content, "Expected content in output file")
 
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
+	// Load the first row of the file as a record
+	var record utils.Record
+	err = json.Unmarshal(content, &record)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, record, "Expected record in output file")
 
-	// Verify expected fields
-	assert.Equal(t, params.CollectionTimestamp, jsonData["collection_timestamp"])
-	assert.Equal(t, params.CollectionTimestamp, jsonData["event_timestamp"])
-	assert.Equal(t, "mock_source", jsonData["source_file"])
-	assert.Equal(t, "data", jsonData["test"])
+	// Verify the record contents
+	assert.Equal(t, params.CollectionTimestamp, record.CollectionTimestamp)
+	assert.NotEmpty(t, record.EventTimestamp)
+	assert.Equal(t, plistPath, record.SourceFile)
 }
 
-// Helper function to verify contents of generated files in the Run test
-func verifyFileContents(t *testing.T, filePath string, fileType string) {
-	content, err := os.ReadFile(filePath)
-	assert.NoError(t, err)
-
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err)
-
-	// Common verification
-	assert.NotEmpty(t, jsonData["collection_timestamp"])
-	assert.NotEmpty(t, jsonData["event_timestamp"])
-	assert.Equal(t, "mock_source", jsonData["source_file"])
-	assert.Equal(t, "data", jsonData["test"])
-
-	// Additional type-specific verifications could be added here
-	switch fileType {
-	case "appstore-history":
-		// History-specific checks
-		// e.g., assert.Contains(t, filePath, "history")
-	case "appstore-receipts":
-		// Receipts-specific checks
-	case "appstore-config":
-		// Config-specific checks
+func createMockSQLiteDB(dbPath string) error {
+	// Create the database file
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
 	}
-}
+	defer db.Close()
 
-// Helper functions to create mock output files
+	// Create the history table
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS history (
+		item_id TEXT,
+		bundle_id TEXT,
+		title TEXT,
+		version TEXT,
+		download_size INTEGER,
+		purchase_date TEXT,
+		download_date TEXT,
+		first_launch_date TEXT,
+		last_launch_date TEXT
+	);`
 
-func createMockOutputFiles(t *testing.T, params mod.ModuleParams) {
-	createMockHistoryFile(t, params)
-	createMockReceiptsFile(t, params)
-	createMockConfigFile(t, params)
-}
-
-func createMockHistoryFile(t *testing.T, params mod.ModuleParams) {
-	filename := "appstore-history-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      params.CollectionTimestamp,
-		SourceFile:          "mock_source",
-		Data:                map[string]interface{}{"test": "data"},
+	_, err = db.Exec(createTableSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
 	}
 
-	testutils.WriteTestRecord(t, filepath, record)
-}
+	// Insert test data
+	insertDataSQL := `
+	INSERT INTO history (
+		item_id, bundle_id, title, version, download_size,
+		purchase_date, download_date, first_launch_date, last_launch_date
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`
 
-func createMockReceiptsFile(t *testing.T, params mod.ModuleParams) {
-	filename := "appstore-receipts-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      params.CollectionTimestamp,
-		SourceFile:          "mock_source",
-		Data:                map[string]interface{}{"test": "data"},
+	_, err = db.Exec(insertDataSQL,
+		"123456789",
+		"com.example.app",
+		"Test App",
+		"1.0.0",
+		1024,
+		"2024-03-20T10:00:00Z",
+		"2024-03-20T10:01:00Z",
+		"2024-03-20T10:02:00Z",
+		"2024-03-20T10:03:00Z",
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert test data: %w", err)
 	}
 
-	testutils.WriteTestRecord(t, filepath, record)
-}
-
-func createMockConfigFile(t *testing.T, params mod.ModuleParams) {
-	filename := "appstore-config-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      params.CollectionTimestamp,
-		SourceFile:          "mock_source",
-		Data:                map[string]interface{}{"test": "data"},
-	}
-
-	testutils.WriteTestRecord(t, filepath, record)
+	return nil
 }
