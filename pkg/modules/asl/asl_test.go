@@ -1,13 +1,12 @@
 package asl
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -16,70 +15,13 @@ import (
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 
-func TestASLModule(t *testing.T) {
-	// Create temporary directory for test outputs
-	tmpDir, err := os.MkdirTemp("", "asl_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	logger := testutils.NewTestLogger()
-
-	// Setup test parameters
-	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
-		Logger:              *logger,
-	}
-
-	// Create module instance with proper initialization
-	module := &AslModule{
-		Name:        "asl",
-		Description: "Collects and parses logs from Apple System Logs (ASL)",
-	}
-
-	// Test GetName
-	t.Run("GetName", func(t *testing.T) {
-		assert.Equal(t, "asl", module.GetName())
-	})
-
-	// Test GetDescription
-	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "Apple System Logs")
-	})
-
-	// Test Run method
-	t.Run("Run", func(t *testing.T) {
-		// Create mock output file directly
-		createMockASLOutputFile(t, params)
-
-		// Check if output file was created
-		pattern := filepath.Join(tmpDir, "asl*.json")
-		matches, err := filepath.Glob(pattern)
-		assert.NoError(t, err)
-		assert.NotEmpty(t, matches, "Expected output file not found: asl")
-
-		// Verify file contents
-		verifyASLFileContents(t, matches[0])
-	})
-}
-
-func TestASLParseXML(t *testing.T) {
-	// Test XML parsing functionality
-	t.Run("ParseXML", func(t *testing.T) {
-		// Sample XML content that matches the structure expected by the module
-		xmlContent := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<array>
+func TestUnmarshalXML(t *testing.T) {
+	xmlData := `
 	<dict>
 		<key>ASLMessageID</key>
-		<string>123456</string>
+		<string>12345</string>
 		<key>Time</key>
-		<string>2023-09-01 14:30:45 +0000</string>
+		<string>2024-03-20T10:00:00Z</string>
 		<key>TimeNanoSec</key>
 		<string>123456789</string>
 		<key>Level</key>
@@ -88,179 +30,108 @@ func TestASLParseXML(t *testing.T) {
 		<string>1234</string>
 		<key>UID</key>
 		<string>501</string>
+		<key>GID</key>
+		<string>20</string>
+		<key>ReadGID</key>
+		<string>80</string>
 		<key>Host</key>
-		<string>MacBookPro</string>
+		<string>localhost</string>
 		<key>Sender</key>
-		<string>test.application</string>
+		<string>test.app</string>
 		<key>Facility</key>
 		<string>com.apple.system</string>
 		<key>Message</key>
-		<string>Test log message</string>
-	</dict>
-</array>
-</plist>`
+		<string>Test message</string>
+		<key>MsgCount</key>
+		<string>1</string>
+		<key>ShimCount</key>
+		<string>0</string>
+		<key>SenderMachUUID</key>
+		<string>abcdef-123456</string>
+	</dict>`
 
-		var plist Plist
-		decoder := xml.NewDecoder(strings.NewReader(xmlContent))
-		err := decoder.Decode(&plist)
+	var entry LogEntry
+	decoder := xml.NewDecoder(strings.NewReader(xmlData))
+	start := xml.StartElement{Name: xml.Name{Local: "dict"}}
+	err := entry.UnmarshalXML(decoder, start)
 
-		// Check for successful parsing
-		assert.NoError(t, err, "XML should parse successfully")
-		// Verify we got the expected data
-		assert.Len(t, plist.Entries, 1, "Should have 1 log entry")
-		if len(plist.Entries) > 0 {
-			entry := plist.Entries[0]
-			assert.Equal(t, "123456", entry.ASLMessageID)
-			assert.Equal(t, "2023-09-01 14:30:45 +0000", entry.Time)
-			assert.Equal(t, "123456789", entry.TimeNanoSec)
-			assert.Equal(t, "5", entry.Level)
-			assert.Equal(t, "1234", entry.PID)
-			assert.Equal(t, "501", entry.UID)
-			assert.Equal(t, "MacBookPro", entry.Host)
-			assert.Equal(t, "test.application", entry.Sender)
-			assert.Equal(t, "com.apple.system", entry.Facility)
-			assert.Equal(t, "Test log message", entry.Message)
-		}
-	})
-
-	// Add a test for invalid XML
-	t.Run("ParseInvalidXML", func(t *testing.T) {
-		invalidXML := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<array>
-	<dict>
-		<key>InvalidKey</key>
-		<string>This is not valid ASL data structure</string>
-	</dict>
-</array>
-</plist>`
-
-		var plist Plist
-		decoder := xml.NewDecoder(strings.NewReader(invalidXML))
-		err := decoder.Decode(&plist)
-
-		// Should decode successfully as it's valid plist XML
-		// but won't have expected ASL fields
-		assert.NoError(t, err, "XML decoder should not fail on well-formed plist")
-		assert.Len(t, plist.Entries, 1, "Should have 1 entry")
-		assert.Empty(t, plist.Entries[0].ASLMessageID, "ASLMessageID should be empty")
-		assert.Empty(t, plist.Entries[0].Message, "Message should be empty")
-	})
+	assert.NoError(t, err)
+	assert.Equal(t, "12345", entry.ASLMessageID)
+	assert.Equal(t, "2024-03-20T10:00:00Z", entry.Time)
+	assert.Equal(t, "123456789", entry.TimeNanoSec)
+	assert.Equal(t, "5", entry.Level)
+	assert.Equal(t, "1234", entry.PID)
+	assert.Equal(t, "501", entry.UID)
+	assert.Equal(t, "20", entry.GID)
+	assert.Equal(t, "80", entry.ReadGID)
+	assert.Equal(t, "localhost", entry.Host)
+	assert.Equal(t, "test.app", entry.Sender)
+	assert.Equal(t, "com.apple.system", entry.Facility)
+	assert.Equal(t, "Test message", entry.Message)
+	assert.Equal(t, "1", entry.MsgCount)
+	assert.Equal(t, "0", entry.ShimCount)
+	assert.Equal(t, "abcdef-123456", entry.SenderMachUUID)
 }
 
-// New test for verifying generation and structure of ASL data
-func TestASLRecordGeneration(t *testing.T) {
-	// Create temporary directory
-	tmpDir, err := os.MkdirTemp("", "asl_record_test")
+func TestParseASLFileWithRealSyslog(t *testing.T) {
+	// Check if syslog command is available
+	_, err := exec.LookPath("syslog")
 	if err != nil {
-		t.Fatal(err)
+		t.Skip("syslog command not available, skipping test")
 	}
+
+	// Find real ASL files in the system
+	aslFiles, err := filepath.Glob("/private/var/log/asl/*.asl")
+	if err != nil || len(aslFiles) == 0 {
+		t.Skip("No ASL files found, skipping test")
+	}
+
+	// Set up test directories
+	tmpDir, err := os.MkdirTemp("", "asl_real_test")
+	assert.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	// Test timestamp
-	testTime := "2023-09-01 14:30:45"
-
-	// Create a test record
-	record := utils.Record{
-		CollectionTimestamp: testTime,
-		EventTimestamp:      testTime,
-		SourceFile:          "/private/var/log/asl/test.asl",
-		Data: map[string]interface{}{
-			"ASLMessageID": "123456",
-			"Time":         "2023-09-01 14:30:45 +0000",
-			"Level":        "5",
-			"Message":      "Test log message",
-		},
+	// Create test parameters
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		OutputDir:           tmpDir,
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: "2024-01-01T00:00:00Z",
+		Logger:              *logger,
 	}
 
-	// Write the record to a file
-	testFile := filepath.Join(tmpDir, "test_asl.json")
-	writeASLTestRecord(t, testFile, record)
+	// Create our TestDataWriter
+	testWriter := &testutils.TestDataWriter{Records: []utils.Record{}}
 
-	// Verify the file contents
-	verifyASLFileContents(t, testFile)
-}
+	// Choose a recent ASL file to test with
+	testAslFile := aslFiles[0]
 
-// Helper function to verify ASL file contents
-func verifyASLFileContents(t *testing.T, filePath string) {
-	// Read the file
-	content, err := os.ReadFile(filePath)
-	assert.NoError(t, err, "Should be able to read the ASL file")
-
-	// Parse the JSON
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err, "Should be able to parse the ASL JSON")
-
-	// Verify common fields
-	assert.NotEmpty(t, jsonData["collection_timestamp"], "Should have collection timestamp")
-	assert.NotEmpty(t, jsonData["event_timestamp"], "Should have event timestamp")
-	assert.NotEmpty(t, jsonData["source_file"], "Should have source file")
-
-	// Verify ASL-specific fields
-	// At least check for the presence of common ASL fields
-	expectedFields := []string{"ASLMessageID", "Time", "Level", "Message"}
-	for _, field := range expectedFields {
-		_, exists := jsonData[field]
-		assert.True(t, exists, "Should contain ASL field: "+field)
-	}
-
-	// Verify the message format if present
-	if message, ok := jsonData["Message"].(string); ok {
-		assert.NotEmpty(t, message, "Log message should not be empty")
-	}
-}
-
-// Helper function to create mock output file
-func createMockASLOutputFile(t *testing.T, params mod.ModuleParams) {
-	filename := "asl-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filePath := filepath.Join(params.OutputDir, filename)
-
-	// Create a sample ASL log entry as a record
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      "2023-09-01 14:30:45",
-		SourceFile:          "/private/var/log/asl/test.asl",
-		Data: map[string]interface{}{
-			"ASLMessageID": "123456",
-			"Time":         "2023-09-01 14:30:45 +0000",
-			"TimeNanoSec":  "123456789",
-			"Level":        "5",
-			"PID":          "1234",
-			"UID":          "501",
-			"GID":          "20",
-			"ReadGID":      "80",
-			"Host":         "MacBookPro",
-			"Sender":       "test.application",
-			"Facility":     "com.apple.system",
-			"Message":      "Test log message",
-			"MsgCount":     "1",
-			"ShimCount":    "0",
-		},
-	}
-
-	writeASLTestRecord(t, filePath, record)
-}
-
-func writeASLTestRecord(t *testing.T, filepath string, record utils.Record) {
-	// Create JSON representation of the record
-	jsonRecord := map[string]interface{}{
-		"collection_timestamp": record.CollectionTimestamp,
-		"event_timestamp":      record.EventTimestamp,
-		"source_file":          record.SourceFile,
-	}
-
-	recordMap, ok := record.Data.(map[string]interface{})
-	assert.True(t, ok, "Record data should be a map")
-
-	for k, v := range recordMap {
-		jsonRecord[k] = v
-	}
-
-	data, err := json.MarshalIndent(jsonRecord, "", "  ")
+	// Run parseASLFile with real syslog command
+	err = parseASLFile(params, []string{testAslFile}, testWriter)
 	assert.NoError(t, err)
 
-	err = os.WriteFile(filepath, data, 0600)
-	assert.NoError(t, err)
+	// Check that records were processed
+	assert.NotEmpty(t, testWriter.Records, "No records were processed from real ASL file")
+
+	// Verify a sample of records if any were found
+	if len(testWriter.Records) > 0 {
+		record := testWriter.Records[0]
+
+		// Check basic structure but not specific values since real data varies
+		assert.NotEmpty(t, record.EventTimestamp, "Event timestamp should not be empty")
+		assert.Equal(t, testAslFile, record.SourceFile)
+		assert.Contains(t, record.Data, "ASLMessageID")
+		assert.Contains(t, record.Data, "Time")
+		assert.Contains(t, record.Data, "Message")
+		assert.Contains(t, record.Data, "Level")
+		assert.Contains(t, record.Data, "PID")
+		assert.Contains(t, record.Data, "UID")
+		assert.Contains(t, record.Data, "GID")
+		assert.Contains(t, record.Data, "ReadGID")
+
+		// Verify data is a map with expected fields
+		_, ok := record.Data.(map[string]interface{})
+		assert.True(t, ok, "Record data should be a map")
+	}
 }

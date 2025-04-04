@@ -33,6 +33,20 @@ func WriteTestRecord(t *testing.T, filepath string, record utils.Record) {
 	assert.NoError(t, err)
 }
 
+// TestDataWriter implements utils.DataWriter for testing
+type TestDataWriter struct {
+	Records []utils.Record
+}
+
+func (w *TestDataWriter) WriteRecord(record utils.Record) error {
+	w.Records = append(w.Records, record)
+	return nil
+}
+
+func (w *TestDataWriter) Close() error {
+	return nil
+}
+
 // Helper to split content into lines (handles different line endings)
 func SplitLines(data []byte) [][]byte {
 	var lines [][]byte
