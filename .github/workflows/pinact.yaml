@@ -11,6 +11,6 @@ jobs:
           persist-credentials: false
 
       - name: Pin actions
-        uses: suzuki-shunsuke/pinact-action@a6896d13d22e2bf108a78b0c52d3f867c1f41b34 # v0.2.1
+        uses: suzuki-shunsuke/pinact-action@49cbd6acd0dbab6a6be2585d1dbdaa43b4410133 # v1.0.0
         with:
           skip_push: true
