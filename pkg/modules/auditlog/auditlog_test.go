@@ -9,8 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gnzdotmx/ishinobu/pkg/mod"
-	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 
@@ -21,17 +19,6 @@ func TestAuditLogModule(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-
-	logger := testutils.NewTestLogger()
-
-	// Setup test parameters
-	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
-		Logger:              *logger,
-	}
 
 	// Create module instance
 	module := &AuditLogModule{
@@ -49,20 +36,6 @@ func TestAuditLogModule(t *testing.T) {
 		assert.Contains(t, module.GetDescription(), "audit logs")
 	})
 
-	// Test Run method - since this calls praudit command, we'll create mock output directly
-	t.Run("Run", func(t *testing.T) {
-		// Create mock output file directly
-		createMockAuditLogFile(t, params)
-
-		// Check if output file was created
-		pattern := filepath.Join(tmpDir, "auditlog*.json")
-		matches, err := filepath.Glob(pattern)
-		assert.NoError(t, err)
-		assert.NotEmpty(t, matches)
-
-		// Verify file contents
-		verifyAuditLogFileContents(t, matches[0])
-	})
 }
 
 func TestParsePrauditXMLLine(t *testing.T) {
@@ -226,43 +199,4 @@ func recordToJSON(record utils.Record) map[string]interface{} {
 	}
 
 	return jsonRecord
-}
-
-// Helper function to create mock audit log output file
-func createMockAuditLogFile(t *testing.T, params mod.ModuleParams) {
-	filename := "auditlog-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	recordData := map[string]interface{}{
-		"event":     "system_check",
-		"modifier":  "0",
-		"time":      "1618329456",
-		"msec":      "123",
-		"audit-uid": "1001",
-		"uid":       "1001",
-		"gid":       "1001",
-		"ruid":      "1001",
-		"rgid":      "1001",
-		"pid":       "12345",
-		"sid":       "100",
-		"tid":       "200",
-		"errval":    "0",
-		"retval":    "0",
-		"1":         "test_value",
-	}
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      time.Now().Format(utils.TimeFormat),
-		SourceFile:          "/private/var/audit/test_file",
-		Data:                recordData,
-	}
-
-	// Create JSON representation of the record
-	jsonRecord := recordToJSON(record)
-	data, err := json.MarshalIndent(jsonRecord, "", "  ")
-	assert.NoError(t, err)
-
-	err = os.WriteFile(filepath, data, 0600)
-	assert.NoError(t, err)
 }

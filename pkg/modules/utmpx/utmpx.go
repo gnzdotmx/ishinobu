@@ -10,6 +10,7 @@ package utmpx
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"time"
 
@@ -70,15 +71,32 @@ func (m *UtmpxModule) Run(params mod.ModuleParams) error {
 		return err
 	}
 
+	err = parseUtmpx(params, utmpxPath, writer)
+	if err != nil {
+		params.Logger.Debug("Error parsing utmpx: %v", err)
+		return fmt.Errorf("error parsing utmpx: %v", err)
+	}
+
+	return nil
+}
+
+func parseUtmpx(params mod.ModuleParams, utmpxPath string, writer utils.DataWriter) error {
 	// Read the utmpx file
 	data, err := os.ReadFile(utmpxPath)
 	if err != nil {
-		params.Logger.Debug("Error reading utmpx file: %v", err)
-		return err
+		return fmt.Errorf("error reading utmpx file: %v", err)
+	}
+
+	// Get record size
+	recordSize := binary.Size(UtmpxRecord{})
+
+	// Check if file is too small to even contain a header
+	if len(data) < recordSize {
+		params.Logger.Debug("File too small to contain valid utmpx records: %s", utmpxPath)
+		return nil
 	}
 
 	// Skip the header (first record)
-	recordSize := binary.Size(UtmpxRecord{})
 	data = data[recordSize:]
 
 	// Process each record

@@ -43,37 +43,105 @@ func (m *AutostartModule) GetDescription() string {
 
 func (m *AutostartModule) Run(params mod.ModuleParams) error {
 	// Parse each type of autostart location
-	err := parseLaunchItems(m.GetName(), params)
+	// Find all LaunchAgents and LaunchDaemons plists
+	patternsLaunchItems := []string{
+		"/System/Library/LaunchAgents/*.plist",
+		"/Library/LaunchAgents/*.plist",
+		"/Users/*/Library/LaunchAgents/*.plist",
+		"/System/Library/LaunchDaemons/*.plist",
+		"/Library/LaunchDaemons/*.plist",
+	}
+	outputFileNameLaunchItems := utils.GetOutputFileName(m.GetName()+"-launch-items", params.ExportFormat, params.OutputDir)
+	writerLaunchItems, err := utils.NewDataWriter(params.LogsDir, outputFileNameLaunchItems, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = parseLaunchItems(patternsLaunchItems, writerLaunchItems, params)
 	if err != nil {
 		params.Logger.Debug("Error parsing launch items: %v", err)
 	}
 
-	err = parseLoginItems(m.GetName(), params)
+	// Find all login items plists
+	patternLoginItems := "/Users/*/Library/Preferences/com.apple.loginitems.plist"
+	outputFileNameLoginItems := utils.GetOutputFileName(m.GetName()+"-login-items", params.ExportFormat, params.OutputDir)
+	writerLoginItems, err := utils.NewDataWriter(params.LogsDir, outputFileNameLoginItems, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = parseLoginItems(patternLoginItems, writerLoginItems, params)
 	if err != nil {
 		params.Logger.Debug("Error parsing login items: %v", err)
 	}
 
-	err = parseStartupItems(m.GetName(), params)
+	// Find all startup items plists
+	patternsStartupItems := []string{
+		"/System/Library/StartupItems/*/*",
+		"/Library/StartupItems/*/*",
+	}
+	outputFileNameStartupItems := utils.GetOutputFileName(m.GetName()+"-startup-items", params.ExportFormat, params.OutputDir)
+	writerStartupItems, err := utils.NewDataWriter(params.LogsDir, outputFileNameStartupItems, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = parseStartupItems(patternsStartupItems, writerStartupItems, params)
 	if err != nil {
 		params.Logger.Debug("Error parsing startup items: %v", err)
 	}
 
-	err = parseScriptingAdditions(m.GetName(), params)
+	// Find all scripting additions
+	patternsScriptingAdditions := []string{
+		"/System/Library/ScriptingAdditions/*.osax",
+		"/Library/ScriptingAdditions/*.osax",
+	}
+	outputFileNameScriptingAdditions := utils.GetOutputFileName(m.GetName()+"-scripting-additions", params.ExportFormat, params.OutputDir)
+	writerScriptingAdditions, err := utils.NewDataWriter(params.LogsDir, outputFileNameScriptingAdditions, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = parseScriptingAdditions(patternsScriptingAdditions, writerScriptingAdditions, params)
 	if err != nil {
 		params.Logger.Debug("Error parsing scripting additions: %v", err)
 	}
 
-	err = parsePeriodicTasks(m.GetName(), params)
+	// Find all periodic tasks
+	patternsPeriodicTasks := []string{
+		"/etc/periodic.conf",
+		"/etc/periodic/*/*",
+		"/etc/*.local",
+		"/etc/rc.common",
+		"/etc/emond.d/*",
+		"/etc/emond.d/*/*",
+	}
+	outputFileNamePeriodicTasks := utils.GetOutputFileName(m.GetName()+"-periodic-tasks", params.ExportFormat, params.OutputDir)
+	writerPeriodicTasks, err := utils.NewDataWriter(params.LogsDir, outputFileNamePeriodicTasks, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = parsePeriodicTasks(patternsPeriodicTasks, writerPeriodicTasks, params)
 	if err != nil {
 		params.Logger.Debug("Error parsing periodic tasks: %v", err)
 	}
 
-	err = parseCronJobs(m.GetName(), params)
+	// Find all cron jobs
+	patternCronJobs := "/var/at/tabs/*"
+	outputFileNameCronJobs := utils.GetOutputFileName(m.GetName()+"-cron-jobs", params.ExportFormat, params.OutputDir)
+	writerCronJobs, err := utils.NewDataWriter(params.LogsDir, outputFileNameCronJobs, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = parseCronJobs(patternCronJobs, writerCronJobs, params)
 	if err != nil {
 		params.Logger.Debug("Error parsing cron jobs: %v", err)
 	}
 
-	err = parseSandboxedLoginItems(m.GetName(), params)
+	// Find all sandboxed login items
+	patternSandboxedLoginItems := "/var/db/com.apple.xpc.launchd/disabled.*.plist"
+	outputFileNameSandboxedLoginItems := utils.GetOutputFileName(m.GetName()+"-sandboxed-login-items", params.ExportFormat, params.OutputDir)
+	writerSandboxedLoginItems, err := utils.NewDataWriter(params.LogsDir, outputFileNameSandboxedLoginItems, params.ExportFormat)
+	if err != nil {
+		return err
+	}
+	err = parseSandboxedLoginItems(patternSandboxedLoginItems, writerSandboxedLoginItems, params)
 	if err != nil {
 		params.Logger.Debug("Error parsing sandboxed login items: %v", err)
 	}
@@ -81,22 +149,7 @@ func (m *AutostartModule) Run(params mod.ModuleParams) error {
 	return nil
 }
 
-func parseLaunchItems(moduleName string, params mod.ModuleParams) error {
-	// Find all LaunchAgents and LaunchDaemons plists
-	patterns := []string{
-		"/System/Library/LaunchAgents/*.plist",
-		"/Library/LaunchAgents/*.plist",
-		"/Users/*/Library/LaunchAgents/*.plist",
-		"/System/Library/LaunchDaemons/*.plist",
-		"/Library/LaunchDaemons/*.plist",
-	}
-
-	outputFileName := utils.GetOutputFileName(moduleName+"-launch-items", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
+func parseLaunchItems(patterns []string, writer utils.DataWriter, params mod.ModuleParams) error {
 	for _, pattern := range patterns {
 		files, err := filepath.Glob(pattern)
 		if err != nil {
@@ -162,15 +215,7 @@ func parseLaunchItems(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parseLoginItems(moduleName string, params mod.ModuleParams) error {
-	pattern := "/Users/*/Library/Preferences/com.apple.loginitems.plist"
-
-	outputFileName := utils.GetOutputFileName(moduleName+"-login-items", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
+func parseLoginItems(pattern string, writer utils.DataWriter, params mod.ModuleParams) error {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return err
@@ -233,18 +278,7 @@ func parseLoginItems(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parseStartupItems(moduleName string, params mod.ModuleParams) error {
-	patterns := []string{
-		"/System/Library/StartupItems/*/*",
-		"/Library/StartupItems/*/*",
-	}
-
-	outputFileName := utils.GetOutputFileName(moduleName+"-startup-items", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
+func parseStartupItems(patterns []string, writer utils.DataWriter, params mod.ModuleParams) error {
 	for _, pattern := range patterns {
 		files, err := filepath.Glob(pattern)
 		if err != nil {
@@ -273,18 +307,7 @@ func parseStartupItems(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parseScriptingAdditions(moduleName string, params mod.ModuleParams) error {
-	patterns := []string{
-		"/System/Library/ScriptingAdditions/*.osax",
-		"/Library/ScriptingAdditions/*.osax",
-	}
-
-	outputFileName := utils.GetOutputFileName(moduleName+"-scripting-additions", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
+func parseScriptingAdditions(patterns []string, writer utils.DataWriter, params mod.ModuleParams) error {
 	for _, pattern := range patterns {
 		files, err := filepath.Glob(pattern)
 		if err != nil {
@@ -318,22 +341,7 @@ func parseScriptingAdditions(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parsePeriodicTasks(moduleName string, params mod.ModuleParams) error {
-	patterns := []string{
-		"/etc/periodic.conf",
-		"/etc/periodic/*/*",
-		"/etc/*.local",
-		"/etc/rc.common",
-		"/etc/emond.d/*",
-		"/etc/emond.d/*/*",
-	}
-
-	outputFileName := utils.GetOutputFileName(moduleName+"-periodic-tasks", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
+func parsePeriodicTasks(patterns []string, writer utils.DataWriter, params mod.ModuleParams) error {
 	for _, pattern := range patterns {
 		files, err := filepath.Glob(pattern)
 		if err != nil {
@@ -362,15 +370,7 @@ func parsePeriodicTasks(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parseCronJobs(moduleName string, params mod.ModuleParams) error {
-	pattern := "/var/at/tabs/*"
-
-	outputFileName := utils.GetOutputFileName(moduleName+"-cron-jobs", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
+func parseCronJobs(pattern string, writer utils.DataWriter, params mod.ModuleParams) error {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return err
@@ -408,15 +408,7 @@ func parseCronJobs(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parseSandboxedLoginItems(moduleName string, params mod.ModuleParams) error {
-	pattern := "/var/db/com.apple.xpc.launchd/disabled.*.plist"
-
-	outputFileName := utils.GetOutputFileName(moduleName+"-sandboxed-login-items", params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
+func parseSandboxedLoginItems(pattern string, writer utils.DataWriter, params mod.ModuleParams) error {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return err

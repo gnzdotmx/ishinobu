@@ -149,6 +149,15 @@ func (m *AslModule) Run(params mod.ModuleParams) error {
 	}
 	defer writer.Close()
 
+	err = parseASLFile(params, aslFiles, writer)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func parseASLFile(params mod.ModuleParams, aslFiles []string, writer utils.DataWriter) error {
 	for _, file := range aslFiles {
 		cmd := exec.Command("syslog", "-F", "xml", "-f", file)
 		stdout, err := cmd.StdoutPipe()
@@ -212,6 +221,5 @@ func (m *AslModule) Run(params mod.ModuleParams) error {
 			}
 		}
 	}
-
 	return nil
 }
