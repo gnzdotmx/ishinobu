@@ -463,25 +463,25 @@ func getPopupChromeSettings(location string, profileUsr string, moduleName strin
 	preferencesMap, ok := preferences["profile"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No profile data found")
-		return nil
+		return fmt.Errorf("no profile data found")
 	}
 
 	contentSettings, ok := preferencesMap["content_settings"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No content settings data found")
-		return nil
+		return fmt.Errorf("no content settings data found")
 	}
 
 	exceptions, ok := contentSettings["exceptions"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No exceptions data found")
-		return nil
+		return fmt.Errorf("no exceptions data found")
 	}
 
 	popups, ok := exceptions["popups"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No popups data found")
-		return nil
+		return fmt.Errorf("no popups data found")
 	}
 
 	for key, value := range popups {
@@ -762,10 +762,12 @@ func cleanServerURL(serverURL string) string {
 	// Split on colon to remove port number if present
 	parts := strings.Split(domain, ":")
 	if len(parts) > 0 {
-		return parts[0]
+		domain = parts[0]
 	}
 
-	return domain
+	// Remove path by splitting on slash and keeping only the first part
+	parts = strings.Split(domain, "/")
+	return parts[0]
 }
 
 // Helper function to get the extension name from its ID
@@ -774,19 +776,19 @@ func getExtensionName(location string, profileUsr string, extensionID string) (s
 	manifestPath := filepath.Join(location, profileUsr, "Extensions", extensionID, "*", "manifest.json")
 	manifestFiles, err := utils.ListFiles(manifestPath)
 	if err != nil || len(manifestFiles) == 0 {
-		return extensionID, fmt.Errorf("%w: %s", errManifestNotFound, extensionID)
+		return "", fmt.Errorf("%w: %s", errManifestNotFound, extensionID)
 	}
 
 	// Read manifest file
 	data, err := os.ReadFile(manifestFiles[0])
 	if err != nil {
-		return extensionID, err
+		return "", fmt.Errorf("error reading manifest file: %w", err)
 	}
 
 	// Parse JSON
 	var manifest map[string]interface{}
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return extensionID, err
+		return "", fmt.Errorf("error parsing manifest file: %w", err)
 	}
 
 	// Get name
@@ -794,5 +796,5 @@ func getExtensionName(location string, profileUsr string, extensionID string) (s
 		return name, nil
 	}
 
-	return extensionID, nil
+	return "", fmt.Errorf("no name found for extension %s", extensionID)
 }
