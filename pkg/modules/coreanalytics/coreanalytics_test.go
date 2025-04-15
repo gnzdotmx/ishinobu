@@ -2,314 +2,232 @@ package coreanalytics
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
-	"github.com/gnzdotmx/ishinobu/pkg/utils"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestCoreAnalyticsModule(t *testing.T) {
-	// Create temporary directory for test outputs
-	tmpDir, err := os.MkdirTemp("", "coreanalytics_test")
-	if err != nil {
-		t.Fatal(err)
+func TestGetName(t *testing.T) {
+	module := &CoreAnalyticsModule{
+		Name:        "coreanalytics",
+		Description: "Collects and parses CoreAnalytics artifacts",
 	}
+	assert.Equal(t, "coreanalytics", module.GetName())
+}
+
+func TestGetDescription(t *testing.T) {
+	module := &CoreAnalyticsModule{
+		Name:        "coreanalytics",
+		Description: "Collects and parses CoreAnalytics artifacts",
+	}
+	assert.Equal(t, "Collects and parses CoreAnalytics artifacts", module.GetDescription())
+}
+
+func TestFormatDuration(t *testing.T) {
+	tests := []struct {
+		seconds  float64
+		expected string
+	}{
+		{0, "00:00:00"},
+		{60, "00:01:00"},
+		{3600, "01:00:00"},
+		{3661, "01:01:01"},
+		{86400, "24:00:00"},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%.0f seconds", test.seconds), func(t *testing.T) {
+			result := formatDuration(test.seconds)
+			assert.Equal(t, test.expected, result)
+		})
+	}
+}
+
+func TestGetMacOSVersion(t *testing.T) {
+	// This test depends on the actual OS version, so it's a simple verification
+	// that the function returns something reasonable
+	version, err := getMacOSVersion()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, version)
+}
+
+func TestParseAnalyticsFiles(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "coreanalytics_test")
+	assert.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	logger := testutils.NewTestLogger()
+	// Create fake analytics files
+	analyticsDir := filepath.Join(tmpDir, "DiagnosticReports")
+	err = os.MkdirAll(analyticsDir, 0755)
+	assert.NoError(t, err)
 
-	// Setup test parameters
+	analyticsFile := filepath.Join(analyticsDir, "Analytics1.core_analytics")
+
+	// Create a sample analytics file content
+	analyticContent := `{"_marker":"start","startTimestamp":"2023-01-01T12:00:00Z"}
+{"timestamp":"2023-01-01T12:30:00Z"}
+{"message":{"processName":"TestProcess","uptime":3600,"powerTime":1800,"foreground":true,"appDescription":"TestApp ||| 1.0","activations":5},"name":"AppUsage","uuid":"test-uuid-1"}
+{"message":{"processName":"TestProcess2","activeTime":1200,"foreground":false,"appName":"TestApp2","appVersion":"2.0","launches":3},"name":"AppLaunch","uuid":"test-uuid-2"}
+`
+	err = os.WriteFile(analyticsFile, []byte(analyticContent), 0644)
+	assert.NoError(t, err)
+
+	// Setup test params
+	logger := testutils.NewTestLogger()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
+		LogsDir:             tmpDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
 	}
 
-	// Create module instance
+	// Test the function
+	patterns := []string{filepath.Join(tmpDir, "DiagnosticReports", "Analytics*.core_analytics")}
+	err = parseAnalyticsFiles("coreanalytics", params, patterns)
+	assert.NoError(t, err)
+
+	// Verify that output file was created
+	outputFile := filepath.Join(tmpDir, "coreanalytics-analytics.json")
+	_, err = os.Stat(outputFile)
+	assert.NoError(t, err)
+
+	// Read the output file to verify content
+	content, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+	assert.Contains(t, string(content), "TestProcess")
+	assert.Contains(t, string(content), "AppUsage")
+	assert.Contains(t, string(content), "test-uuid-1")
+}
+
+func TestParseAnalyticsFilesError(t *testing.T) {
+	// Test with invalid pattern
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		Logger:              *logger,
+		LogsDir:             "/nonexistent",
+		OutputDir:           "/nonexistent",
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+	}
+
+	// This should not return an error, just log and continue
+	err := parseAnalyticsFiles("coreanalytics", params, []string{"/invalid/[pattern"})
+	assert.NoError(t, err)
+}
+
+func TestParseAggregateFiles(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "coreanalytics_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	// Create fake aggregate files directory structure
+	aggregateDir := filepath.Join(tmpDir, "db", "analyticsd", "aggregates")
+	err = os.MkdirAll(aggregateDir, 0755)
+	assert.NoError(t, err)
+
+	// Create a sample aggregate file
+	aggregateFile := filepath.Join(aggregateDir, "4d7c9e4a-8c8c-4971-bce3-09d38d078849")
+
+	// Create sample aggregate data
+	aggregateData := []map[string]interface{}{
+		{
+			"app":   "TestApp",
+			"usage": 3600,
+			"count": 5,
+		},
+		{
+			"app":   "TestApp2",
+			"usage": 1800,
+			"count": 3,
+		},
+	}
+
+	jsonData, err := json.Marshal(aggregateData)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(aggregateFile, jsonData, 0644)
+	assert.NoError(t, err)
+
+	// Setup test params
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		Logger:              *logger,
+		LogsDir:             tmpDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+	}
+
+	// Test the function
+	pattern := filepath.Join(tmpDir, "db", "analyticsd", "aggregates", "4d7c9e4a-8c8c-4971-bce3-09d38d078849")
+	err = parseAggregateFiles("coreanalytics", params, pattern)
+	assert.NoError(t, err)
+
+	// Verify that output file was created
+	outputFile := filepath.Join(tmpDir, "coreanalytics-aggregates.json")
+	_, err = os.Stat(outputFile)
+	assert.NoError(t, err)
+
+	// Read the output file to verify content
+	content, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+	assert.Contains(t, string(content), "TestApp")
+}
+
+func TestParseAggregateFilesError(t *testing.T) {
+	// Test with non-existent pattern
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		Logger:              *logger,
+		LogsDir:             "/nonexistent",
+		OutputDir:           "/nonexistent",
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+	}
+
+	// This should not return an error, just log and continue
+	err := parseAggregateFiles("coreanalytics", params, "/nonexistent/pattern")
+	assert.NoError(t, err)
+}
+
+func TestRunCoreAnalyticsModule(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "coreanalytics_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	// Setup test params
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		Logger:              *logger,
+		LogsDir:             tmpDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+	}
+
+	// Create a module and run it
 	module := &CoreAnalyticsModule{
 		Name:        "coreanalytics",
 		Description: "Collects and parses CoreAnalytics artifacts",
 	}
 
-	// Test GetName
-	t.Run("GetName", func(t *testing.T) {
-		assert.Equal(t, "coreanalytics", module.GetName())
+	// Run the module - the actual OS version will determine if processing continues
+	err = module.Run(params)
+	assert.NoError(t, err)
+
+	// Don't assert on the specific error as it depends on the OS version
+	// but we can at least verify the module runs
+	assert.NotPanics(t, func() {
+		_ = module.Run(params)
 	})
-
-	// Test GetDescription
-	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "CoreAnalytics")
-	})
-
-	// Test Run method - create mock output files directly
-	t.Run("Run", func(t *testing.T) {
-		// Create mock output files
-		createMockCoreAnalyticsFiles(t, params)
-
-		// Check if output files were created
-		expectedFiles := []string{
-			"coreanalytics-analytics",
-			"coreanalytics-aggregates",
-		}
-
-		for _, file := range expectedFiles {
-			pattern := filepath.Join(tmpDir, file+"*.json")
-			matches, err := filepath.Glob(pattern)
-			assert.NoError(t, err)
-			assert.NotEmpty(t, matches, "Expected output file not found: "+file)
-
-			// Verify file contents
-			verifyCoreAnalyticsFileContents(t, matches[0], file)
-		}
-	})
-}
-
-func TestParseAnalyticsFiles(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "coreanalytics_analytics_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	logger := testutils.NewTestLogger()
-	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
-		Logger:              *logger,
-	}
-
-	// Create mock analytics output file
-	createMockAnalyticsFile(t, params)
-
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "coreanalytics-analytics*.json")
-	matches, err := filepath.Glob(pattern)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
-
-	// Verify file contents
-	content, err := os.ReadFile(matches[0])
-	assert.NoError(t, err)
-
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err)
-
-	// Verify specific fields for analytics
-	sourceFile, ok := jsonData["source_file"].(string)
-	assert.True(t, ok, "source_file should be a string")
-	assert.Contains(t, sourceFile, "Analytics")
-	assert.NotEmpty(t, jsonData["src_report"])
-	assert.NotEmpty(t, jsonData["diag_start"])
-	assert.NotEmpty(t, jsonData["diag_end"])
-	assert.NotEmpty(t, jsonData["name"])
-	assert.NotEmpty(t, jsonData["uuid"])
-}
-
-func TestParseAggregateFiles(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "coreanalytics_aggregates_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	logger := testutils.NewTestLogger()
-	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
-		Logger:              *logger,
-	}
-
-	// Create mock aggregate output file
-	createMockAggregateFile(t, params)
-
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "coreanalytics-aggregates*.json")
-	matches, err := filepath.Glob(pattern)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
-
-	// Verify file contents
-	content, err := os.ReadFile(matches[0])
-	assert.NoError(t, err)
-
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err)
-
-	// Verify specific fields for aggregates
-	sourceFile, ok := jsonData["source_file"].(string)
-	assert.True(t, ok, "source_file should be a string")
-	assert.Contains(t, sourceFile, "aggregates")
-	assert.NotEmpty(t, jsonData["src_report"])
-	assert.NotEmpty(t, jsonData["diag_start"])
-	assert.NotEmpty(t, jsonData["diag_end"])
-	assert.NotEmpty(t, jsonData["uuid"])
-	assert.NotEmpty(t, jsonData["entry"])
-}
-
-func TestMacOSVersionCompatibility(t *testing.T) {
-	// This test would mock the getMacOSVersion function
-	// and test the version compatibility checks
-	// For a unit test, we might skip this as it depends on system state
-	t.Skip("Skipping version compatibility test as it depends on system state")
-}
-
-func TestFormatDuration(t *testing.T) {
-	// Test the duration formatting
-	testCases := []struct {
-		seconds  float64
-		expected string
-	}{
-		{3600, "01:00:00"},
-		{3661, "01:01:01"},
-		{7322, "02:02:02"},
-		{0, "00:00:00"},
-		{86399, "23:59:59"}, // Just under 24 hours
-	}
-
-	for _, tc := range testCases {
-		result := formatDuration(tc.seconds)
-		assert.Equal(t, tc.expected, result, "Formatting %f seconds", tc.seconds)
-	}
-}
-
-// Helper function to verify CoreAnalytics file contents
-func verifyCoreAnalyticsFileContents(t *testing.T, filePath string, fileType string) {
-	// Read the file
-	content, err := os.ReadFile(filePath)
-	assert.NoError(t, err, "Should be able to read the CoreAnalytics file")
-
-	// Parse the JSON
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err, "Should be able to parse the CoreAnalytics JSON")
-
-	// Verify common fields
-	assert.NotEmpty(t, jsonData["collection_timestamp"], "Should have collection timestamp")
-	assert.NotEmpty(t, jsonData["event_timestamp"], "Should have event timestamp")
-	assert.NotEmpty(t, jsonData["source_file"], "Should have source file")
-	assert.NotEmpty(t, jsonData["src_report"], "Should have source report")
-	assert.NotEmpty(t, jsonData["diag_start"], "Should have diagnostic start time")
-	assert.NotEmpty(t, jsonData["diag_end"], "Should have diagnostic end time")
-
-	// Verify type-specific fields
-	switch fileType {
-	case "coreanalytics-analytics":
-		assert.NotEmpty(t, jsonData["name"], "Should have message name")
-		assert.NotEmpty(t, jsonData["uuid"], "Should have UUID")
-
-		// Check for app-related fields if they exist
-		if _, ok := jsonData["appName"]; ok {
-			assert.NotEmpty(t, jsonData["appName"], "App name should not be empty if present")
-		}
-
-		// Check for duration fields if they exist
-		durationFields := []string{"uptime", "powerTime", "activeTime"}
-		for _, field := range durationFields {
-			if _, ok := jsonData[field]; ok {
-				assert.NotEmpty(t, jsonData[field+"_parsed"], "Parsed duration should exist for "+field)
-			}
-		}
-
-	case "coreanalytics-aggregates":
-		assert.NotEmpty(t, jsonData["uuid"], "Should have UUID")
-		assert.NotEmpty(t, jsonData["entry"], "Should have entry data")
-	}
-}
-
-// Helper functions to create mock output files
-
-func createMockCoreAnalyticsFiles(t *testing.T, params mod.ModuleParams) {
-	createMockAnalyticsFile(t, params)
-	createMockAggregateFile(t, params)
-}
-
-func createMockAnalyticsFile(t *testing.T, params mod.ModuleParams) {
-	filename := "coreanalytics-analytics-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	// Sample diagnostic times
-	diagStart := time.Now().Add(-time.Hour).Format(time.RFC3339)
-	diagEnd := time.Now().Format(time.RFC3339)
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      diagStart,
-		SourceFile:          "/Library/Logs/DiagnosticReports/Analytics-2023-01-01.core_analytics",
-		Data: map[string]interface{}{
-			"src_report":        "/Library/Logs/DiagnosticReports/Analytics-2023-01-01.core_analytics",
-			"diag_start":        diagStart,
-			"diag_end":          diagEnd,
-			"name":              "app.usage",
-			"uuid":              "12345678-1234-1234-1234-123456789012",
-			"processName":       "TestApp",
-			"appName":           "Test Application",
-			"appVersion":        "1.0.0",
-			"uptime":            float64(3600),
-			"uptime_parsed":     "01:00:00",
-			"powerTime":         float64(3000),
-			"powerTime_parsed":  "00:50:00",
-			"activeTime":        float64(1800),
-			"activeTime_parsed": "00:30:00",
-			"foreground":        true,
-			"activations":       5,
-			"launches":          3,
-		},
-	}
-
-	testutils.WriteTestRecord(t, filepath, record)
-}
-
-func createMockAggregateFile(t *testing.T, params mod.ModuleParams) {
-	filename := "coreanalytics-aggregates-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	// Sample diagnostic times
-	diagStart := time.Now().Add(-time.Hour).Format(time.RFC3339)
-	diagEnd := time.Now().Format(time.RFC3339)
-
-	// Sample aggregate entry
-	aggregateEntry := map[string]interface{}{
-		"app":      "TestApp",
-		"count":    10,
-		"duration": 3600,
-		"instances": []interface{}{
-			map[string]interface{}{
-				"timestamp": diagStart,
-				"state":     "active",
-			},
-			map[string]interface{}{
-				"timestamp": diagEnd,
-				"state":     "inactive",
-			},
-		},
-	}
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      diagStart,
-		SourceFile:          "/private/var/db/analyticsd/aggregates/4d7c9e4a-8c8c-4971-bce3-09d38d078849",
-		Data: map[string]interface{}{
-			"src_report": "/private/var/db/analyticsd/aggregates/4d7c9e4a-8c8c-4971-bce3-09d38d078849",
-			"diag_start": diagStart,
-			"diag_end":   diagEnd,
-			"uuid":       "4d7c9e4a-8c8c-4971-bce3-09d38d078849",
-			"entry":      aggregateEntry,
-		},
-	}
-
-	testutils.WriteTestRecord(t, filepath, record)
 }

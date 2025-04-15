@@ -82,14 +82,21 @@ func (m *CoreAnalyticsModule) Run(params mod.ModuleParams) error {
 		}
 	}
 
+	// Find all Analytics files
+	patterns := []string{
+		"/Library/Logs/DiagnosticReports/Analytics*.core_analytics",
+		"/Library/Logs/DiagnosticReports/Retired/Analytics*.core_analytics",
+	}
 	// Parse Analytics files
-	err = parseAnalyticsFiles(m.GetName(), params)
+	err = parseAnalyticsFiles(m.GetName(), params, patterns)
 	if err != nil {
 		return err
 	}
 
+	// Find aggregate files
+	pattern := "/private/var/db/analyticsd/aggregates/4d7c9e4a-8c8c-4971-bce3-09d38d078849"
 	// Parse Aggregate files
-	err = parseAggregateFiles(m.GetName(), params)
+	err = parseAggregateFiles(m.GetName(), params, pattern)
 	if err != nil {
 		return err
 	}
@@ -97,13 +104,7 @@ func (m *CoreAnalyticsModule) Run(params mod.ModuleParams) error {
 	return nil
 }
 
-func parseAnalyticsFiles(moduleName string, params mod.ModuleParams) error {
-	// Find all Analytics files
-	patterns := []string{
-		"/Library/Logs/DiagnosticReports/Analytics*.core_analytics",
-		"/Library/Logs/DiagnosticReports/Retired/Analytics*.core_analytics",
-	}
-
+func parseAnalyticsFiles(moduleName string, params mod.ModuleParams, patterns []string) error {
 	var analyticsFiles []string
 	for _, pattern := range patterns {
 		matches, err := filepath.Glob(pattern)
@@ -215,9 +216,7 @@ func parseAnalyticsFiles(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parseAggregateFiles(moduleName string, params mod.ModuleParams) error {
-	// Find aggregate files
-	pattern := "/private/var/db/analyticsd/aggregates/4d7c9e4a-8c8c-4971-bce3-09d38d078849"
+func parseAggregateFiles(moduleName string, params mod.ModuleParams, pattern string) error {
 	aggregateFiles, err := filepath.Glob(pattern)
 	if err != nil {
 		return err
