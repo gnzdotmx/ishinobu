@@ -76,7 +76,6 @@ func TestCollectFirefoxHistory(t *testing.T) {
 	err = collectFirefoxHistory(profileDir, "firefox", params)
 	assert.NoError(t, err)
 
-	// Load output json file"
 	//find file which contains "firefox-history"
 	files, err := filepath.Glob(filepath.Join(testDir, "firefox-history*"))
 	assert.NoError(t, err)
