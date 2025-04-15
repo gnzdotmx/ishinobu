@@ -1,329 +1,359 @@
 package firefox
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestFirefoxModule(t *testing.T) {
-	// Create temporary directory for test outputs
-	tmpDir, err := os.MkdirTemp("", "firefox_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+func TestCollectFirefoxHistory(t *testing.T) {
+	// Setup test database
+	testDir := t.TempDir()
+	profileDir := filepath.Join(testDir, "profile123")
+	err := os.MkdirAll(profileDir, 0755)
+	assert.NoError(t, err)
 
+	// Create test schema for places.sqlite - combine both tables in one schema
+	schema := `
+	CREATE TABLE moz_places (
+		id INTEGER PRIMARY KEY,
+		url TEXT,
+		title TEXT,
+		visit_count INTEGER,
+		typed INTEGER,
+		last_visit_date INTEGER,
+		description TEXT
+	);
+	CREATE TABLE moz_historyvisits (
+		id INTEGER PRIMARY KEY,
+		place_id INTEGER,
+		visit_date INTEGER,
+		visit_type INTEGER
+	);
+	`
+
+	placesDB := filepath.Join(profileDir, "places.sqlite")
+	testutils.CreateSQLiteTestDB(t, placesDB, schema, nil, nil)
+
+	// Now insert data into moz_places table
+	placesRows := [][]interface{}{
+		{1, "https://example.com", "Example Site", 5, 1, 13291740170497, "Example description"},
+	}
+
+	db, err := sql.Open("sqlite3", placesDB)
+	assert.NoError(t, err)
+	defer db.Close()
+
+	// Insert places data
+	_, err = db.Exec("INSERT INTO moz_places (id, url, title, visit_count, typed, last_visit_date, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		placesRows[0]...)
+	assert.NoError(t, err)
+
+	// Insert history visits data
+	_, err = db.Exec("INSERT INTO moz_historyvisits (id, place_id, visit_date) VALUES (?, ?, ?)",
+		1, 1, 13291740170497)
+	assert.NoError(t, err)
+
+	// Setup test params
 	logger := testutils.NewTestLogger()
 
-	// Setup test parameters
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
+		LogsDir:             testDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: "2023-01-01T00:00:00Z",
 	}
 
-	// Create module instance
-	module := &FirefoxModule{
-		Name:        "firefox",
-		Description: "Collects and parses Firefox browser history, downloads, and extensions",
+	// Run the function
+	err = collectFirefoxHistory(profileDir, "firefox", params)
+	assert.NoError(t, err)
+
+	// Load output json file"
+	//find file which contains "firefox-history"
+	files, err := filepath.Glob(filepath.Join(testDir, "firefox-history*"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, files, "Expected at least one file in output directory")
+
+	// Load the first file
+	content, err := os.ReadFile(files[0])
+	assert.NoError(t, err)
+	assert.NotEmpty(t, content, "Expected content in output file")
+
+	// Unmarshal the content into a slice of records
+	var records []map[string]interface{}
+	err = json.Unmarshal(content, &records)
+	if err != nil {
+		// If not an array, try as a single JSON object
+		var record map[string]interface{}
+		err = json.Unmarshal(content, &record)
+		assert.NoError(t, err, "Failed to parse JSON as either array or object")
+
+		// Convert single record to slice for consistent handling
+		records = []map[string]interface{}{record}
 	}
+	assert.NoError(t, err)
+	assert.NotEmpty(t, records, "Expected records in output file")
 
-	// Test GetName
-	t.Run("GetName", func(t *testing.T) {
-		assert.Equal(t, "firefox", module.GetName())
-	})
+	// Load the first row of the file as a record
+	var record utils.Record
+	err = json.Unmarshal(content, &record)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, record, "Expected record in output file")
 
-	// Test GetDescription
-	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "Firefox")
-	})
+	// Verify results
+	assert.GreaterOrEqual(t, len(records), 1)
+	dataRecord := records[0]
 
-	// Test Run method
-	t.Run("Run", func(t *testing.T) {
-		// Create mock output files directly
-		createMockFirefoxFiles(t, params)
-
-		// Check if output files were created
-		expectedFiles := []string{
-			"firefox-history",
-			"firefox-downloads",
-			"firefox-extensions",
-		}
-
-		for _, file := range expectedFiles {
-			pattern := filepath.Join(tmpDir, file+"*.json")
-			matches, err := filepath.Glob(pattern)
-			assert.NoError(t, err)
-			assert.NotEmpty(t, matches, "Expected output file not found: "+file)
-
-			// Verify file contents
-			verifyFirefoxFileContents(t, matches[0], file)
-		}
-	})
+	// Verify record fields
+	assert.Equal(t, "profile123", dataRecord["profile"])
+	assert.Equal(t, "Example Site", dataRecord["title"])
+	assert.Equal(t, "https://example.com", dataRecord["url"])
 }
 
-func TestCollectFirefoxHistory(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "firefox_history_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+func TestCollectFirefoxHistoryError(t *testing.T) {
+	// Setup test directory with no database
+	testDir := t.TempDir()
+	profileDir := filepath.Join(testDir, "profile123")
+	err := os.MkdirAll(profileDir, 0755)
+	assert.NoError(t, err)
 
+	// Setup test params
 	logger := testutils.NewTestLogger()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
+		LogsDir:             testDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: "2023-01-01T00:00:00Z",
 	}
 
-	// Create mock Firefox history output file
-	createMockFirefoxHistoryFile(t, params)
-
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "firefox-history*.json")
-	matches, err := filepath.Glob(pattern)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
-
-	// Verify file contents
-	content, err := os.ReadFile(matches[0])
-	assert.NoError(t, err)
-
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err)
-
-	// Verify specific fields for Firefox history
-	sourceFile, ok := jsonData["source_file"].(string)
-	assert.True(t, ok, "source_file should be a string")
-	assert.Contains(t, sourceFile, "places.sqlite")
-	assert.Equal(t, "testuser", jsonData["user"])
-	assert.Equal(t, "default-profile", jsonData["profile"])
-	assert.Equal(t, "https://www.example.com", jsonData["url"])
-	assert.Equal(t, "Example Website", jsonData["title"])
-	assert.NotEmpty(t, jsonData["visit_time"])
-	assert.Equal(t, "5", jsonData["visit_count"])
+	// Run the function (should fail because the database file doesn't exist)
+	err = collectFirefoxHistory(profileDir, "firefox", params)
+	assert.Error(t, err)
 }
 
 func TestCollectFirefoxDownloads(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "firefox_downloads_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	// Setup test database
+	testDir := t.TempDir()
+	profileDir := filepath.Join(testDir, "profile123")
+	err := os.MkdirAll(profileDir, 0755)
+	assert.NoError(t, err)
 
+	// Create test schema for places.sqlite with both tables in one schema
+	schema := `
+	CREATE TABLE moz_places (
+		id INTEGER PRIMARY KEY,
+		url TEXT
+	);
+	CREATE TABLE moz_annos (
+		id INTEGER PRIMARY KEY,
+		place_id INTEGER,
+		content TEXT,
+		dateAdded INTEGER
+	);
+	`
+
+	placesDB := filepath.Join(profileDir, "places.sqlite")
+	testutils.CreateSQLiteTestDB(t, placesDB, schema, nil, nil)
+
+	// Now insert data directly using SQL
+	db, err := sql.Open("sqlite3", placesDB)
+	assert.NoError(t, err)
+	defer db.Close()
+
+	// Insert places data
+	_, err = db.Exec("INSERT INTO moz_places (id, url) VALUES (?, ?)",
+		1, "https://example.com/file.zip")
+	assert.NoError(t, err)
+
+	// Insert annotations data
+	_, err = db.Exec("INSERT INTO moz_annos (id, place_id, content, dateAdded) VALUES (?, ?, ?, ?)",
+		1, 1, "/path/to/file.zip,{, finished:12345678,totalBytes:1024}", 13291740170497)
+	assert.NoError(t, err)
+
+	// Setup test params
+	logger := testutils.NewTestLogger()
+
+	params := mod.ModuleParams{
+		Logger:              *logger,
+		LogsDir:             testDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: "2023-01-01T00:00:00Z",
+	}
+
+	// Run the function
+	err = collectFirefoxDownloads(profileDir, "firefox", params)
+	assert.NoError(t, err)
+
+	// Find the file which contains "firefox-downloads"
+	files, err := filepath.Glob(filepath.Join(testDir, "firefox-downloads*"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, files, "Expected at least one file in output directory")
+
+	// Load the first file
+	content, err := os.ReadFile(files[0])
+	assert.NoError(t, err)
+	assert.NotEmpty(t, content, "Expected content in output file")
+
+	// Unmarshal the content into a slice of records
+	var records []map[string]interface{}
+	err = json.Unmarshal(content, &records)
+	if err != nil {
+		// If not an array, try as a single JSON object
+		var record map[string]interface{}
+		err = json.Unmarshal(content, &record)
+		assert.NoError(t, err, "Failed to parse JSON as either array or object")
+
+		// Convert single record to slice for consistent handling
+		records = []map[string]interface{}{record}
+	}
+	assert.NoError(t, err)
+	// Verify results
+	assert.GreaterOrEqual(t, len(records), 1)
+	record := records[0]
+
+	// Verify record fields
+	assert.Equal(t, "profile123", record["profile"])
+	assert.Equal(t, "https://example.com/file.zip", record["download_url"])
+	assert.Equal(t, "/path/to/file.zip", record["download_path"])
+}
+
+func TestCollectFirefoxDownloadsError(t *testing.T) {
+	// Setup test directory with no database
+	testDir := t.TempDir()
+	profileDir := filepath.Join(testDir, "profile123")
+	err := os.MkdirAll(profileDir, 0755)
+	assert.NoError(t, err)
+
+	// Setup test params
 	logger := testutils.NewTestLogger()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
+		LogsDir:             testDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: "2023-01-01T00:00:00Z",
 	}
 
-	// Create mock Firefox downloads output file
-	createMockFirefoxDownloadsFile(t, params)
-
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "firefox-downloads*.json")
-	matches, err := filepath.Glob(pattern)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
-
-	// Verify file contents
-	content, err := os.ReadFile(matches[0])
-	assert.NoError(t, err)
-
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err)
-
-	// Verify specific fields for Firefox downloads
-	sourceFile, ok := jsonData["source_file"].(string)
-	assert.True(t, ok, "source_file should be a string")
-	assert.Contains(t, sourceFile, "places.sqlite")
-	assert.Equal(t, "testuser", jsonData["user"])
-	assert.Equal(t, "default-profile", jsonData["profile"])
-	assert.Equal(t, "https://www.example.com/downloads/test.pdf", jsonData["download_url"])
-	assert.Equal(t, "/Users/testuser/Downloads/test.pdf", jsonData["download_path"])
-	assert.NotEmpty(t, jsonData["download_started"])
-	assert.NotEmpty(t, jsonData["download_finished"])
-	assert.Equal(t, "1024000", jsonData["download_totalbytes"])
+	// Run the function (should fail because the database file doesn't exist)
+	err = collectFirefoxDownloads(profileDir, "firefox", params)
+	assert.Error(t, err)
 }
 
 func TestCollectFirefoxExtensions(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "firefox_extensions_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	// Setup test directory and extensions.json
+	testDir := t.TempDir()
+	profileDir := filepath.Join(testDir, "profile123")
+	err := os.MkdirAll(profileDir, 0755)
+	assert.NoError(t, err)
 
+	// Create test extensions.json
+	extensionsData := ExtensionsData{
+		Addons: []Extension{
+			{
+				DefaultLocale: struct {
+					Name        string "json:\"name\""
+					Creator     string "json:\"creator\""
+					Description string "json:\"description\""
+					HomepageURL string "json:\"homepageURL\""
+				}{
+					Name:        "Test Extension",
+					Creator:     "Test Creator",
+					Description: "Test Description",
+					HomepageURL: "https://example.com/extension",
+				},
+				ID:          "test-extension@example.com",
+				UpdateURL:   "https://example.com/updates",
+				InstallDate: 1640995200000,
+				UpdateDate:  1645995200000,
+				SourceURI:   "https://example.com/source",
+			},
+		},
+	}
+
+	extensionsJSON, err := json.Marshal(extensionsData)
+	assert.NoError(t, err)
+
+	extensionsFile := filepath.Join(profileDir, "extensions.json")
+	err = os.WriteFile(extensionsFile, extensionsJSON, 0644)
+	assert.NoError(t, err)
+
+	// Setup test params
+	logger := testutils.NewTestLogger()
+
+	params := mod.ModuleParams{
+		Logger:              *logger,
+		LogsDir:             testDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: "2023-01-01T00:00:00Z",
+	}
+
+	// Run the function
+	err = collectFirefoxExtensions(profileDir, "firefox", params)
+	assert.NoError(t, err)
+
+	// Find the file which contains "firefox-extensions"
+	files, err := filepath.Glob(filepath.Join(testDir, "firefox-extensions*"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, files, "Expected at least one file in output directory")
+
+	// Load the first file
+	content, err := os.ReadFile(files[0])
+	assert.NoError(t, err)
+	assert.NotEmpty(t, content, "Expected content in output file")
+
+	// Unmarshal the content into a slice of records
+	var records []map[string]interface{}
+	err = json.Unmarshal(content, &records)
+	if err != nil {
+		// If not an array, try as a single JSON object
+		var record map[string]interface{}
+		err = json.Unmarshal(content, &record)
+		assert.NoError(t, err, "Failed to parse JSON as either array or object")
+
+		// Convert single record to slice for consistent handling
+		records = []map[string]interface{}{record}
+	}
+
+	// Verify record fields
+	assert.GreaterOrEqual(t, len(records), 1)
+	record := records[0]
+
+	// Verify record fields
+	assert.Equal(t, "profile123", record["profile"])
+	assert.Equal(t, "Test Extension", record["name"])
+	assert.Equal(t, "test-extension@example.com", record["id"])
+	assert.Equal(t, "Test Creator", record["creator"])
+}
+
+func TestCollectFirefoxExtensionsError(t *testing.T) {
+	// Setup test directory with no extensions.json
+	testDir := t.TempDir()
+	profileDir := filepath.Join(testDir, "profile123")
+	err := os.MkdirAll(profileDir, 0755)
+	assert.NoError(t, err)
+
+	// Setup test params
 	logger := testutils.NewTestLogger()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
+		LogsDir:             testDir,
+		OutputDir:           "./",
+		ExportFormat:        "json",
+		CollectionTimestamp: "2023-01-01T00:00:00Z",
 	}
 
-	// Create mock Firefox extensions output file
-	createMockFirefoxExtensionsFile(t, params)
-
-	// Check if the file exists
-	pattern := filepath.Join(tmpDir, "firefox-extensions*.json")
-	matches, err := filepath.Glob(pattern)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, matches)
-
-	// Verify file contents
-	content, err := os.ReadFile(matches[0])
-	assert.NoError(t, err)
-
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err)
-
-	// Verify specific fields for Firefox extensions
-	sourceFile, ok := jsonData["source_file"].(string)
-	assert.True(t, ok, "source_file should be a string")
-	assert.Contains(t, sourceFile, "extensions.json")
-	assert.Equal(t, "testuser", jsonData["user"])
-	assert.Equal(t, "default-profile", jsonData["profile"])
-	assert.Equal(t, "Test Extension", jsonData["name"])
-	assert.Equal(t, "extension@example.com", jsonData["id"])
-	assert.Equal(t, "Example Developer", jsonData["creator"])
-	assert.NotEmpty(t, jsonData["install_date"])
-	assert.NotEmpty(t, jsonData["last_updated"])
-}
-
-// Helper function to verify Firefox file contents
-func verifyFirefoxFileContents(t *testing.T, filePath string, fileType string) {
-	// Read the file
-	content, err := os.ReadFile(filePath)
-	assert.NoError(t, err, "Should be able to read the Firefox file")
-
-	// Parse the JSON
-	var jsonData map[string]interface{}
-	err = json.Unmarshal(content, &jsonData)
-	assert.NoError(t, err, "Should be able to parse the Firefox JSON")
-
-	// Verify common fields
-	assert.NotEmpty(t, jsonData["collection_timestamp"], "Should have collection timestamp")
-	assert.NotEmpty(t, jsonData["event_timestamp"], "Should have event timestamp")
-	assert.NotEmpty(t, jsonData["source_file"], "Should have source file")
-	assert.NotEmpty(t, jsonData["user"], "Should have user")
-	assert.NotEmpty(t, jsonData["profile"], "Should have profile")
-
-	// Verify type-specific fields
-	switch fileType {
-	case "firefox-history":
-		assert.NotEmpty(t, jsonData["url"], "Should have URL")
-		assert.NotEmpty(t, jsonData["title"], "Should have title")
-		assert.NotEmpty(t, jsonData["visit_time"], "Should have visit time")
-		assert.NotEmpty(t, jsonData["visit_count"], "Should have visit count")
-
-	case "firefox-downloads":
-		assert.NotEmpty(t, jsonData["download_url"], "Should have download URL")
-		assert.NotEmpty(t, jsonData["download_path"], "Should have download path")
-		assert.NotEmpty(t, jsonData["download_started"], "Should have download start time")
-
-	case "firefox-extensions":
-		assert.NotEmpty(t, jsonData["name"], "Should have extension name")
-		assert.NotEmpty(t, jsonData["id"], "Should have extension ID")
-		assert.NotEmpty(t, jsonData["install_date"], "Should have installation date")
-	}
-}
-
-// Helper functions to create mock output files
-
-func createMockFirefoxFiles(t *testing.T, params mod.ModuleParams) {
-	createMockFirefoxHistoryFile(t, params)
-	createMockFirefoxDownloadsFile(t, params)
-	createMockFirefoxExtensionsFile(t, params)
-}
-
-func createMockFirefoxHistoryFile(t *testing.T, params mod.ModuleParams) {
-	filename := "firefox-history-testuser-default-profile-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      params.CollectionTimestamp,
-		SourceFile:          "/Users/testuser/Library/Application Support/Firefox/Profiles/default-profile/places.sqlite",
-		Data: map[string]interface{}{
-			"user":            "testuser",
-			"profile":         "default-profile",
-			"visit_time":      params.CollectionTimestamp,
-			"title":           "Example Website",
-			"url":             "https://www.example.com",
-			"visit_count":     "5",
-			"typed":           "1",
-			"last_visit_time": params.CollectionTimestamp,
-			"description":     "Example website description",
-		},
-	}
-
-	testutils.WriteTestRecord(t, filepath, record)
-}
-
-func createMockFirefoxDownloadsFile(t *testing.T, params mod.ModuleParams) {
-	filename := "firefox-downloads-testuser-default-profile-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      params.CollectionTimestamp,
-		SourceFile:          "/Users/testuser/Library/Application Support/Firefox/Profiles/default-profile/places.sqlite",
-		Data: map[string]interface{}{
-			"user":                "testuser",
-			"profile":             "default-profile",
-			"download_url":        "https://www.example.com/downloads/test.pdf",
-			"download_path":       "/Users/testuser/Downloads/test.pdf",
-			"download_started":    params.CollectionTimestamp,
-			"download_finished":   params.CollectionTimestamp,
-			"download_totalbytes": "1024000",
-		},
-	}
-
-	testutils.WriteTestRecord(t, filepath, record)
-}
-
-func createMockFirefoxExtensionsFile(t *testing.T, params mod.ModuleParams) {
-	filename := "firefox-extensions-testuser-default-profile-" + params.CollectionTimestamp + "." + params.ExportFormat
-	filepath := filepath.Join(params.OutputDir, filename)
-
-	record := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      params.CollectionTimestamp,
-		SourceFile:          "/Users/testuser/Library/Application Support/Firefox/Profiles/default-profile/extensions.json",
-		Data: map[string]interface{}{
-			"user":         "testuser",
-			"profile":      "default-profile",
-			"name":         "Test Extension",
-			"id":           "extension@example.com",
-			"creator":      "Example Developer",
-			"description":  "A test Firefox extension",
-			"update_url":   "https://addons.mozilla.org/firefox/downloads/latest/test-extension",
-			"install_date": params.CollectionTimestamp,
-			"last_updated": params.CollectionTimestamp,
-			"source_uri":   "https://addons.mozilla.org/firefox/addon/test-extension",
-			"homepage_url": "https://example.com/extension",
-		},
-	}
-
-	testutils.WriteTestRecord(t, filepath, record)
+	// Run the function (should fail because extensions.json doesn't exist)
+	err = collectFirefoxExtensions(profileDir, "firefox", params)
+	assert.Error(t, err)
 }
