@@ -76,7 +76,7 @@ func TestCollectFirefoxHistory(t *testing.T) {
 	err = collectFirefoxHistory(profileDir, "firefox", params)
 	assert.NoError(t, err)
 
-	//find file which contains "firefox-history"
+	// Find file which contains "firefox-history"
 	files, err := filepath.Glob(filepath.Join(testDir, "firefox-history*"))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, files, "Expected at least one file in output directory")
