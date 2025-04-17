@@ -34,12 +34,14 @@ func (m *NetworkConfigPlistsModule) GetDescription() string {
 }
 
 func (m *NetworkConfigPlistsModule) Run(params mod.ModuleParams) error {
-	err := parseAirportPreferences(m.GetName(), params)
+	airportFile := "/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist"
+	err := parseAirportPreferences(airportFile, m.GetName(), params)
 	if err != nil {
 		params.Logger.Debug("Error parsing airport preferences: %v", err)
 	}
 
-	err = parseNetworkInterfaces(m.GetName(), params)
+	networkInterfacesFile := "/Library/Preferences/SystemConfiguration/NetworkInterfaces.plist"
+	err = parseNetworkInterfaces(networkInterfacesFile, m.GetName(), params)
 	if err != nil {
 		params.Logger.Debug("Error parsing network interfaces: %v", err)
 	}
@@ -47,9 +49,7 @@ func (m *NetworkConfigPlistsModule) Run(params mod.ModuleParams) error {
 	return nil
 }
 
-func parseAirportPreferences(moduleName string, params mod.ModuleParams) error {
-	file := "/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist"
-
+func parseAirportPreferences(file string, moduleName string, params mod.ModuleParams) error {
 	outputFileName := utils.GetOutputFileName(moduleName+"-airport", params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {
@@ -121,9 +121,7 @@ func parseAirportPreferences(moduleName string, params mod.ModuleParams) error {
 	return nil
 }
 
-func parseNetworkInterfaces(moduleName string, params mod.ModuleParams) error {
-	file := "/Library/Preferences/SystemConfiguration/NetworkInterfaces.plist"
-
+func parseNetworkInterfaces(file string, moduleName string, params mod.ModuleParams) error {
 	outputFileName := utils.GetOutputFileName(moduleName+"-interfaces", params.ExportFormat, params.OutputDir)
 	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
 	if err != nil {

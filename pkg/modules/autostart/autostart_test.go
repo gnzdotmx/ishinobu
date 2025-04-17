@@ -489,10 +489,6 @@ func TestParseErrorHandling(t *testing.T) {
 		Logger:              *logger,
 	}
 
-	// Test writer with purposefully bad path to simulate write errors
-	badParamsNoOutput := params
-	badParamsNoOutput.OutputDir = "/invalid/path/that/does/not/exist"
-
 	// 1. Test error handling in parseLaunchItems - Invalid plist
 	invalidPlistDir := filepath.Join(tmpDir, "invalid_plists")
 	err = os.MkdirAll(invalidPlistDir, 0755)
