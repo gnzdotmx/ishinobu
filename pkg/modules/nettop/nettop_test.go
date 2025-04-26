@@ -157,7 +157,7 @@ func TestModuleCommandArgs(t *testing.T) {
 
 	// Create output file before running to verify it gets overwritten
 	outputFile := filepath.Join(tmpDir, "nettop-"+params.CollectionTimestamp+".json")
-	err = os.WriteFile(outputFile, []byte("test data"), 0644)
+	err = os.WriteFile(outputFile, []byte("test data"), 0600)
 	assert.NoError(t, err)
 
 	// Run the module
@@ -277,7 +277,7 @@ func TestFieldParsing(t *testing.T) {
 
 	// Create a sample data file that represents what nettop would output
 	sampleFile := filepath.Join(tmpDir, "sample_nettop.csv")
-	err = os.WriteFile(sampleFile, []byte(mockCSV), 0644)
+	err = os.WriteFile(sampleFile, []byte(mockCSV), 0600)
 	assert.NoError(t, err)
 
 	// Manually parse the CSV to verify the field parsing logic
@@ -348,7 +348,7 @@ func TestEmptyLineHandling(t *testing.T) {
 
 	// Create a sample data file
 	sampleFile := filepath.Join(tmpDir, "sample_empty_lines.csv")
-	err = os.WriteFile(sampleFile, []byte(mockCSV), 0644)
+	err = os.WriteFile(sampleFile, []byte(mockCSV), 0600)
 	assert.NoError(t, err)
 
 	// Parse the data manually to verify the module's logic
