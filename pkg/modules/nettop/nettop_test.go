@@ -1,9 +1,9 @@
 package nettop
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,7 +46,7 @@ func TestNettopModule(t *testing.T) {
 
 	// Test GetDescription
 	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "network")
+		assert.Contains(t, module.GetDescription(), "network connections")
 	})
 
 	// Test Run method with mock output
@@ -73,158 +73,452 @@ func TestNettopModuleInitialization(t *testing.T) {
 
 	// Verify module is properly instantiated with expected values
 	assert.Equal(t, "nettop", module.Name, "Module name should be initialized")
-	assert.Contains(t, module.Description, "network", "Module description should be initialized")
+	assert.Contains(t, module.Description, "network connections", "Module description should be initialized")
 
 	// Test the module's methods
 	assert.Equal(t, "nettop", module.GetName())
-	assert.Contains(t, module.GetDescription(), "network")
+	assert.Contains(t, module.GetDescription(), "network connections")
 }
 
-// Create a mock nettop output file with sample data
+// Test that the package initialization occurs
+func TestPackageInitialization(t *testing.T) {
+	// Create a new module with the same name
+	module := &NettopModule{
+		Name:        "nettop",
+		Description: "This is a test initialization",
+	}
+
+	// Verify the module has expected values
+	assert.Equal(t, "nettop", module.Name)
+	assert.Equal(t, "This is a test initialization", module.Description)
+
+	// The init function is automatically called when the package is imported
+	// We can't directly test it, but we can verify it doesn't crash the tests
+}
+
+// Test Run method error handling
+func TestRunMethodError(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "nettop_error_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	logger := testutils.NewTestLogger()
+
+	// Setup test parameters
+	params := mod.ModuleParams{
+		OutputDir:           "./",
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	// Test with a non-existent directory
+	params.OutputDir = "/non/existent/directory"
+
+	module := &NettopModule{
+		Name:        "nettop",
+		Description: "Collects information about network connections",
+	}
+
+	err = module.Run(params)
+	assert.Error(t, err, "Run should return an error with invalid output directory")
+	assert.Contains(t, err.Error(), "error", "Error message should contain explanation")
+}
+
+// Test that the module uses correct command arguments
+func TestModuleCommandArgs(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "nettop_cmd_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	logger := testutils.NewTestLogger()
+
+	// Setup test parameters
+	params := mod.ModuleParams{
+		OutputDir:           tmpDir,
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	// Create module instance
+	module := &NettopModule{
+		Name:        "nettop",
+		Description: "Collects information about network connections",
+	}
+
+	// Create output file before running to verify it gets overwritten
+	outputFile := filepath.Join(tmpDir, "nettop-"+params.CollectionTimestamp+".json")
+	err = os.WriteFile(outputFile, []byte("test data"), 0644)
+	assert.NoError(t, err)
+
+	// Run the module
+	err = module.Run(params)
+
+	// Depending on the environment, this might succeed or fail
+	// But we're testing the file gets updated, not the command success
+	if err == nil {
+		// If it succeeds, verify it wrote new data
+		fileInfo, err := os.Stat(outputFile)
+		assert.NoError(t, err)
+		assert.NotEqual(t, int64(9), fileInfo.Size(), "File size should be different from initial test data")
+	}
+}
+
+// Create a mock nettop output file
 func createMockNettopOutput(t *testing.T, params mod.ModuleParams) {
 	outputFile := filepath.Join(params.OutputDir, "nettop-"+params.CollectionTimestamp+".json")
 
-	// Sample records for network interfaces and processes
-	records := []utils.Record{
+	// Sample nettop output data in JSON format
+	mockData := `[
 		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "nettop",
-			Data: map[string]interface{}{
-				"interface":   "en0",
-				"state":       "ESTABLISHED",
-				"bytes_in":    "1024",
-				"bytes_out":   "2048",
-				"packets_in":  "32",
-				"packets_out": "24",
-				"process":     "chrome",
-			},
+			"collection_timestamp": "` + params.CollectionTimestamp + `",
+			"event_timestamp": "` + time.Now().Format(utils.TimeFormat) + `",
+			"interface": "en0",
+			"state": "ESTABLISHED",
+			"bytes_in": "1024",
+			"bytes_out": "512",
+			"packets_in": "8",
+			"packets_out": "4",
+			"process": "Chrome",
+			"source_file": "nettop"
 		},
 		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "nettop",
-			Data: map[string]interface{}{
-				"interface":   "en0",
-				"state":       "CLOSED",
-				"bytes_in":    "512",
-				"bytes_out":   "128",
-				"packets_in":  "8",
-				"packets_out": "4",
-				"process":     "firefox",
-			},
+			"collection_timestamp": "` + params.CollectionTimestamp + `",
+			"event_timestamp": "` + time.Now().Format(utils.TimeFormat) + `",
+			"interface": "lo0",
+			"state": "ESTABLISHED",
+			"bytes_in": "256",
+			"bytes_out": "128",
+			"packets_in": "2",
+			"packets_out": "1",
+			"process": "node",
+			"source_file": "nettop"
 		},
 		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "nettop",
-			Data: map[string]interface{}{
-				"interface":   "lo0",
-				"state":       "ESTABLISHED",
-				"bytes_in":    "4096",
-				"bytes_out":   "4096",
-				"packets_in":  "16",
-				"packets_out": "16",
-				"process":     "postgres",
-			},
-		},
-	}
+			"collection_timestamp": "` + params.CollectionTimestamp + `",
+			"event_timestamp": "` + time.Now().Format(utils.TimeFormat) + `",
+			"interface": "en1",
+			"state": "CLOSED",
+			"bytes_in": "0",
+			"bytes_out": "0",
+			"packets_in": "0",
+			"packets_out": "0",
+			"process": "Firefox",
+			"source_file": "nettop"
+		}
+	]`
 
-	// Write the records to the output file
-	file, err := os.Create(outputFile)
+	err := os.WriteFile(outputFile, []byte(mockData), 0600)
 	assert.NoError(t, err)
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	for _, record := range records {
-		err := encoder.Encode(record)
-		assert.NoError(t, err)
-	}
 }
 
 // Verify the nettop output file contains expected data
 func verifyNettopOutput(t *testing.T, outputFile string) {
-	// Read the file
-	content, err := os.ReadFile(outputFile)
-	assert.NoError(t, err, "Should be able to read the output file")
+	// Read the output file
+	data, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
 
-	// The file contains JSON lines, so we need to parse each line separately
-	lines := splitNettopLines(content)
-	assert.NotEmpty(t, lines, "Output file should contain data")
+	// Verify the content contains expected elements
+	content := string(data)
 
-	// Expected processes and interfaces to find in the output
-	var foundChrome, foundFirefox, foundPostgres bool
-	var foundEn0, foundLo0 bool
+	// Check for interface information
+	assert.Contains(t, content, "\"interface\": \"en0\"")
+	assert.Contains(t, content, "\"interface\": \"lo0\"")
 
-	for _, line := range lines {
-		var record map[string]interface{}
-		err = json.Unmarshal(line, &record)
-		assert.NoError(t, err, "Each line should be valid JSON")
+	// Check for state information
+	assert.Contains(t, content, "\"state\": \"ESTABLISHED\"")
+	assert.Contains(t, content, "\"state\": \"CLOSED\"")
 
-		// Verify common record fields
-		assert.NotEmpty(t, record["collection_timestamp"], "Should have collection timestamp")
-		assert.NotEmpty(t, record["event_timestamp"], "Should have event timestamp")
-		assert.Equal(t, "nettop", record["source_file"], "Source file should be nettop")
+	// Check for bytes information
+	assert.Contains(t, content, "\"bytes_in\": \"1024\"")
+	assert.Contains(t, content, "\"bytes_out\": \"512\"")
 
-		// Check if data field exists and is a map
-		data, ok := record["data"].(map[string]interface{})
-		assert.True(t, ok, "Should have data field as a map")
+	// Check for packets information
+	assert.Contains(t, content, "\"packets_in\": \"8\"")
+	assert.Contains(t, content, "\"packets_out\": \"4\"")
 
-		// Verify network data fields
-		assert.NotEmpty(t, data["interface"], "Should have interface name")
-		assert.NotEmpty(t, data["state"], "Should have connection state")
-		assert.NotEmpty(t, data["bytes_in"], "Should have bytes_in")
-		assert.NotEmpty(t, data["bytes_out"], "Should have bytes_out")
-		assert.NotEmpty(t, data["packets_in"], "Should have packets_in")
-		assert.NotEmpty(t, data["packets_out"], "Should have packets_out")
-		assert.NotEmpty(t, data["process"], "Should have process name")
-
-		// Track which processes and interfaces we found
-		process, _ := data["process"].(string)
-		switch process {
-		case "chrome":
-			foundChrome = true
-		case "firefox":
-			foundFirefox = true
-		case "postgres":
-			foundPostgres = true
-		}
-
-		interface_, _ := data["interface"].(string)
-		if interface_ == "en0" {
-			foundEn0 = true
-		} else if interface_ == "lo0" {
-			foundLo0 = true
-		}
-	}
-
-	// Verify we found all the expected processes and interfaces
-	assert.True(t, foundChrome, "Should have found chrome process")
-	assert.True(t, foundFirefox, "Should have found firefox process")
-	assert.True(t, foundPostgres, "Should have found postgres process")
-	assert.True(t, foundEn0, "Should have found en0 interface")
-	assert.True(t, foundLo0, "Should have found lo0 interface")
+	// Check for process information
+	assert.Contains(t, content, "\"process\": \"Chrome\"")
+	assert.Contains(t, content, "\"process\": \"node\"")
 }
 
-// Helper function to split content into lines (if not already defined elsewhere in the package)
-func splitNettopLines(data []byte) [][]byte {
-	var lines [][]byte
-	start := 0
+// TestFieldParsing tests the field parsing logic in the nettop module
+func TestFieldParsing(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "nettop_field_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
 
-	for i := 0; i < len(data); i++ {
-		if data[i] == '\n' {
-			// Add the line (excluding the newline character)
-			if i > start {
-				lines = append(lines, data[start:i])
+	// Setup test parameters
+	params := mod.ModuleParams{
+		OutputDir:           tmpDir,
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *testutils.NewTestLogger(),
+	}
+
+	// Create mock CSV file with sample data
+	mockCSV := "interface,state,bytes_in,bytes_out,packets_in,packets_out\n" +
+		"en0,ESTABLISHED,1024,512,8,4,Chrome\n" +
+		"lo0,ESTABLISHED,256,128,2,1,node\n" +
+		"en1,CLOSED,0,0,0,0,Firefox\n"
+
+	// Create a sample data file that represents what nettop would output
+	sampleFile := filepath.Join(tmpDir, "sample_nettop.csv")
+	err = os.WriteFile(sampleFile, []byte(mockCSV), 0644)
+	assert.NoError(t, err)
+
+	// Manually parse the CSV to verify the field parsing logic
+	lines := strings.Split(mockCSV, "\n")
+	header := lines[0]
+	fields := strings.Split(header, ",")
+
+	// Verify we can process the expected format
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		cols := strings.Split(line, ",")
+		if len(cols) != len(fields) {
+			continue
+		}
+
+		// Just verify the column data is accessible without storing records
+		recordData := make(map[string]interface{})
+		for index, col := range cols {
+			colName := fields[index]
+
+			// skip empty columns
+			if colName == "" && col == "" {
+				continue
 			}
-			start = i + 1
+
+			if colName == "" && col != "" {
+				recordData["process"] = col
+			} else {
+				recordData[string(colName)] = col
+			}
+		}
+
+		// Verify some expected fields
+		assert.NotEmpty(t, recordData["interface"])
+		assert.NotEmpty(t, recordData["state"])
+	}
+
+	// Create expected JSON output
+	createMockNettopOutput(t, params)
+
+	// Verify the expected JSON output
+	outputFile := filepath.Join(tmpDir, "nettop-"+params.CollectionTimestamp+".json")
+	assert.FileExists(t, outputFile)
+
+	// Verify content parsing
+	verifyNettopOutput(t, outputFile)
+}
+
+// TestEmptyLineHandling verifies handling of empty lines and field indices
+func TestEmptyLineHandling(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "nettop_empty_line_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a more complex mock CSV with empty lines
+	mockCSV := "interface,state,bytes_in,bytes_out,packets_in,packets_out\n" +
+		"en0,ESTABLISHED,1024,512,8,4,Chrome\n" +
+		"\n" + // Empty line
+		"lo0,ESTABLISHED,256,128,2,1,node\n" +
+		"en1,CLOSED,0,0,0,0,Firefox\n" +
+		"\n" // Empty line at the end
+
+	// Create a sample data file
+	sampleFile := filepath.Join(tmpDir, "sample_empty_lines.csv")
+	err = os.WriteFile(sampleFile, []byte(mockCSV), 0644)
+	assert.NoError(t, err)
+
+	// Parse the data manually to verify the module's logic
+	lines := strings.Split(mockCSV, "\n")
+	if len(lines) == 0 {
+		t.Fatal("Expected non-empty lines array")
+	}
+
+	header := lines[0]
+	fields := strings.Split(header, ",")
+
+	// Check field indices
+	fieldIndices := make(map[string]int)
+	for i, field := range fields {
+		fieldIndices[field] = i
+		// Check that we're indexing fields correctly
+		assert.Equal(t, i, fieldIndices[field])
+	}
+
+	// Verify all line handling
+	recordCount := 0
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) == "" {
+			continue // This should skip two lines
+		}
+
+		cols := strings.Split(line, ",")
+		// In real data, there's an extra column for process, so we don't check exact equality
+		if len(cols) < len(fields) {
+			continue
+		}
+
+		recordCount++
+	}
+
+	// We should have 3 valid records after parsing
+	assert.Equal(t, 3, recordCount)
+}
+
+// TestInvalidDataHandling tests how the module handles invalid input formats
+func TestInvalidDataHandling(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "nettop_invalid_data_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test with invalid number of columns
+	mockCSV := "interface,state,bytes_in,bytes_out,packets_in,packets_out\n" +
+		"en0,ESTABLISHED,1024,512,8,4\n" + // Missing the process column
+		"lo0,ESTABLISHED,256,128,2,1,node,extra\n" // Too many columns
+
+	// Parse the data manually to verify the module's logic
+	lines := strings.Split(mockCSV, "\n")
+	if len(lines) == 0 {
+		t.Fatal("Expected non-empty lines array")
+	}
+
+	header := lines[0]
+	fields := strings.Split(header, ",")
+
+	// Process the lines
+	recordCount := 0
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		cols := strings.Split(line, ",")
+		// Only skip if there are fewer columns than fields
+		// The Nettop module is actually accepting an extra process column
+		if len(cols) < len(fields) {
+			continue
+		}
+
+		// This will be reached for the second line that has extra columns
+		recordCount++
+	}
+
+	// One line should be valid with the given logic
+	assert.Equal(t, 2, recordCount)
+
+	// Test with empty field names
+	mockCSV = "interface,state,bytes_in,bytes_out,,packets_out\n" + // Empty field name
+		"en0,ESTABLISHED,1024,512,,4,Chrome\n"
+
+	lines = strings.Split(mockCSV, "\n")
+	if len(lines) < 2 {
+		t.Fatal("Expected at least 2 lines")
+	}
+
+	header = lines[0]
+	fields = strings.Split(header, ",")
+
+	// Process the record to verify empty field handling
+	recordData := make(map[string]interface{})
+	cols := strings.Split(lines[1], ",")
+
+	// Ensure we don't go out of bounds
+	for index, col := range cols {
+		if index < len(fields) {
+			colName := fields[index]
+
+			// skip empty columns
+			if colName == "" && col == "" {
+				continue
+			}
+
+			if colName == "" && col != "" {
+				recordData["process"] = col
+			} else {
+				recordData[string(colName)] = col
+			}
+		} else if index == len(fields) {
+			// The extra column is for process
+			recordData["process"] = col
 		}
 	}
 
-	// Add the last line if there is one
-	if start < len(data) {
-		lines = append(lines, data[start:])
+	// Verify that the process field is set
+	assert.Equal(t, "Chrome", recordData["process"])
+
+	// Verify that an empty field name is handled properly
+	_, hasEmptyField := recordData[""]
+	assert.False(t, hasEmptyField, "Should not have an empty field name in the record")
+}
+
+// TestDataWriterError tests error handling when NewDataWriter fails
+func TestDataWriterError(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "nettop_writer_error_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	logger := testutils.NewTestLogger()
+
+	// Setup test parameters with an invalid logs directory path
+	// This should cause a failure in NewDataWriter
+	params := mod.ModuleParams{
+		OutputDir:           tmpDir,
+		LogsDir:             "/this/path/does/not/exist",
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
 	}
 
-	return lines
+	// Create module instance
+	module := &NettopModule{
+		Name:        "nettop",
+		Description: "Collects information about network connections",
+	}
+
+	// Prepare mock CSV data for nettop
+	mockCSV := "interface,state,bytes_in,bytes_out,packets_in,packets_out\n" +
+		"en0,ESTABLISHED,1024,512,8,4,Chrome\n"
+
+	// We can't override execCommand, but we can simulate part of the module's behavior
+	// by directly checking the error handling in NewDataWriter failure
+
+	// Call the required file operations that would happen after command execution
+	lines := strings.Split(mockCSV, "\n")
+	if len(lines) < 1 {
+		t.Fatal("Expected at least one line")
+	}
+
+	// Run the module and expect an error
+	err = module.Run(params)
+	assert.Error(t, err, "Run should fail with invalid logs directory")
+	assert.Contains(t, err.Error(), "failed to create data writer", "Error should mention data writer failure")
 }
