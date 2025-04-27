@@ -54,7 +54,7 @@ func TestParseAirportPreferences(t *testing.T) {
 	airportPath := filepath.Join(tmpDir, "airport.plist")
 	plistData, err := plist.Marshal(airportPlist, plist.XMLFormat)
 	require.NoError(t, err)
-	err = os.WriteFile(airportPath, plistData, 0644)
+	err = os.WriteFile(airportPath, plistData, 0600)
 	require.NoError(t, err)
 
 	// Create output files for the records
@@ -212,7 +212,7 @@ func TestParseNetworkInterfaces(t *testing.T) {
 	interfacesPath := filepath.Join(tmpDir, "interfaces.plist")
 	plistData, err := plist.Marshal(interfacesPlist, plist.XMLFormat)
 	require.NoError(t, err)
-	err = os.WriteFile(interfacesPath, plistData, 0644)
+	err = os.WriteFile(interfacesPath, plistData, 0600)
 	require.NoError(t, err)
 
 	// Create output files for the records

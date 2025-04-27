@@ -152,7 +152,7 @@ func TestWorker(t *testing.T) {
 
 	// Create a test file
 	testFile := filepath.Join(tmpDir, "test.sh")
-	err = os.WriteFile(testFile, []byte("#!/bin/bash\necho test"), 0644)
+	err = os.WriteFile(testFile, []byte("#!/bin/bash\necho test"), 0600)
 	assert.NoError(t, err)
 
 	// Setup channels
