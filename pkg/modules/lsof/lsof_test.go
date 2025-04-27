@@ -156,7 +156,7 @@ func TestModuleCommandArgs(t *testing.T) {
 
 	// Create output file before running to verify it gets overwritten
 	outputFile := filepath.Join(tmpDir, "lsof-"+params.CollectionTimestamp+".json")
-	err = os.WriteFile(outputFile, []byte("test data"), 0644)
+	err = os.WriteFile(outputFile, []byte("test data"), 0600)
 	assert.NoError(t, err)
 
 	// Run the module
