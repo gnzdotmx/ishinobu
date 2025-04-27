@@ -283,7 +283,7 @@ func TestCollectFirefoxExtensions(t *testing.T) {
 	assert.NoError(t, err)
 
 	extensionsFile := filepath.Join(profileDir, "extensions.json")
-	err = os.WriteFile(extensionsFile, extensionsJSON, 0644)
+	err = os.WriteFile(extensionsFile, extensionsJSON, 0600)
 	assert.NoError(t, err)
 
 	// Setup test params
