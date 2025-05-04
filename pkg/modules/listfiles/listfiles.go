@@ -68,8 +68,8 @@ const (
 
 // Default paths relevant for IR triage
 var defaultPaths = []string{
-	"/Users",        // User home directories
-	"/Applications", // Installed applications
+	"/Users", // User home directories
+	// "/Applications", // Installed applications
 	// "/Library",         // System libraries and configurations
 	// "/private/var/log", // System logs
 	// "/private/etc",                  // System configurations

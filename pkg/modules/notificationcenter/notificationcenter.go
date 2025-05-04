@@ -39,6 +39,15 @@ func (m *NotificationCenterModule) GetDescription() string {
 
 func (m *NotificationCenterModule) Run(params mod.ModuleParams) error {
 	notificationsDBPath := "/private/var/folders/*/*/0/com.apple.notificationcenter/db2/db*"
+	err := m.ParseNotification(notificationsDBPath, params)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *NotificationCenterModule) ParseNotification(notificationsDBPath string, params mod.ModuleParams) error {
+
 	query := "SELECT data, delivered_date FROM record ORDER BY delivered_date DESC"
 
 	notificationsDBPaths, err := filepath.Glob(notificationsDBPath)

@@ -1,7 +1,9 @@
 package quarantineevents
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -78,6 +80,103 @@ func TestQuarantineEventsModuleInitialization(t *testing.T) {
 	// Test the module's methods
 	assert.Equal(t, "quarantineevents", module.GetName())
 	assert.Contains(t, module.GetDescription(), "QuarantineEventsV2")
+}
+
+// Test the nullStringValue helper function
+func TestNullStringValue(t *testing.T) {
+	t.Run("Valid NullString", func(t *testing.T) {
+		validStr := sql.NullString{String: "test", Valid: true}
+		result := nullStringValue(validStr)
+		assert.Equal(t, "test", result)
+	})
+
+	t.Run("Invalid NullString", func(t *testing.T) {
+		invalidStr := sql.NullString{String: "test", Valid: false}
+		result := nullStringValue(invalidStr)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("Empty Valid NullString", func(t *testing.T) {
+		emptyStr := sql.NullString{String: "", Valid: true}
+		result := nullStringValue(emptyStr)
+		assert.Equal(t, "", result)
+	})
+}
+
+// Test error handling in processQuarantineEvents
+func TestProcessQuarantineEventsErrorHandling(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "quarantineevents_error_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		OutputDir:           tmpDir,
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	t.Run("NonExistentDatabase", func(t *testing.T) {
+		nonExistentPath := filepath.Join(tmpDir, "nonexistent.db")
+		err := processQuarantineEvents(nonExistentPath, "quarantineevents", params)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error copying file")
+	})
+}
+
+// Test the module's Run method by creating test files in a specific location
+func TestModuleRunWithSetupFiles(t *testing.T) {
+	// Skip if tests need to be run in automated environments without privileges
+	// t.Skip("This test requires creation of temporary files in a specific location")
+
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "quarantineevents_run_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test directory structure
+	userLibraryDir := filepath.Join(tmpDir, "Users", "testuser", "Library", "Preferences")
+	err = os.MkdirAll(userLibraryDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create mock QuarantineEventsV2 file
+	quarantineDbPath := filepath.Join(userLibraryDir, "com.apple.LaunchServices.QuarantineEventsV2")
+	file, err := os.Create(quarantineDbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file.Close()
+
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		OutputDir:           tmpDir,
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	module := &QuarantineEventsModule{
+		Name:        "quarantineevents",
+		Description: "Collects and parses QuarantineEventsV2 database",
+	}
+
+	// The Run method should not find our file as it's not in standard locations
+	// This is a negative test to prove the Run method looks in specific locations
+	err = module.Run(params)
+	assert.NoError(t, err)
+
+	// Verify no output file was created since our mock file wasn't found
+	outputFile := filepath.Join(tmpDir, "quarantineevents-"+params.CollectionTimestamp+".json")
+	assert.NoFileExists(t, outputFile)
 }
 
 // Create a mock quarantine events output file
@@ -198,6 +297,121 @@ func verifyQuarantineEventsOutput(t *testing.T, outputFile string) {
 	assert.Contains(t, contentStr, "https://example.com/download/file.dmg")
 	assert.Contains(t, contentStr, "https://test.org/software/app.pkg")
 	assert.Contains(t, contentStr, "jane@example.com")
+}
+
+// Test multiple variations of quarantine events records
+func TestQuarantineEventsDataVariations(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "quarantineevents_variations_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Generate different timestamp formats
+	timestamps := []string{
+		"2023-05-01T12:30:45Z",          // Standard ISO
+		"2023-05-01 12:30:45 +0000 UTC", // Alternative format
+		"1682946645",                    // Unix timestamp
+	}
+
+	// Generate different data combinations
+	dataVariations := []map[string]interface{}{
+		{
+			// All fields populated
+			"identifier":       "complete-id-1",
+			"user":             "testuser",
+			"bundle_id":        "com.test.app1",
+			"quarantine_agent": "com.test.browser",
+			"download_url":     "https://example.com/download/complete.dmg",
+			"sender_name":      "Complete Test",
+			"sender_address":   "complete@example.com",
+			"type_no":          1,
+			"origin_title":     "Complete Origin",
+			"origin_url":       "https://complete.example.com",
+			"origin_alias":     "complete-alias",
+		},
+		{
+			// Missing some optional fields
+			"identifier":       "partial-id-1",
+			"user":             "testuser",
+			"bundle_id":        "com.test.app2",
+			"quarantine_agent": "com.test.browser",
+			"download_url":     "https://example.com/download/partial.dmg",
+			"sender_name":      "",
+			"sender_address":   "",
+			"type_no":          0,
+			"origin_title":     "Partial Origin",
+			"origin_url":       "",
+			"origin_alias":     "",
+		},
+		{
+			// Minimal required data
+			"identifier":       "minimal-id-1",
+			"user":             "testuser",
+			"bundle_id":        "com.test.minimal",
+			"quarantine_agent": "com.test.minimal",
+			"download_url":     "",
+			"sender_name":      "",
+			"sender_address":   "",
+			"type_no":          0,
+			"origin_title":     "",
+			"origin_url":       "",
+			"origin_alias":     "",
+		},
+	}
+
+	// Create test records with different combinations
+	var testRecords []utils.Record
+	for i, timestamp := range timestamps {
+		for j, data := range dataVariations {
+			record := utils.Record{
+				CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+				EventTimestamp:      timestamp,
+				SourceFile:          fmt.Sprintf("/Users/user%d/Library/Preferences/com.apple.LaunchServices.QuarantineEventsV2", i+j),
+				Data:                data,
+			}
+			testRecords = append(testRecords, record)
+		}
+	}
+
+	// Create output file
+	outputFile := filepath.Join(tmpDir, "quarantineevents-variations.json")
+	file, err := os.Create(outputFile)
+	assert.NoError(t, err)
+	defer file.Close()
+
+	// Write test records
+	encoder := json.NewEncoder(file)
+	for _, record := range testRecords {
+		err := encoder.Encode(record)
+		assert.NoError(t, err)
+	}
+
+	// Read and validate file contents
+	content, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+
+	lines := splitQuarantineEventsLines(content)
+	assert.Equal(t, len(testRecords), len(lines), "Should have same number of records as written")
+
+	// Verify random variations are handled
+	for _, line := range lines {
+		var record utils.Record
+		err := json.Unmarshal(line, &record)
+		assert.NoError(t, err)
+
+		// Check record has expected structure
+		assert.NotEmpty(t, record.CollectionTimestamp)
+		assert.NotEmpty(t, record.EventTimestamp)
+		assert.NotEmpty(t, record.SourceFile)
+
+		data, ok := record.Data.(map[string]interface{})
+		assert.True(t, ok)
+		assert.NotEmpty(t, data["identifier"])
+		assert.NotEmpty(t, data["user"])
+		assert.NotEmpty(t, data["bundle_id"])
+		assert.NotEmpty(t, data["quarantine_agent"])
+	}
 }
 
 // Helper to split content into lines (handles different line endings)

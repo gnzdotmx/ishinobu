@@ -1,219 +1,194 @@
 package syslog
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
-	"github.com/gnzdotmx/ishinobu/pkg/utils"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestSyslogModule(t *testing.T) {
-	// Create temporary directory for test outputs
-	tmpDir, err := os.MkdirTemp("", "syslog_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+// MockListFiles is a replacement for utils.ListFiles during testing
+func MockListFiles(pattern string) ([]string, error) {
+	return []string{"/path/to/system.log"}, nil
+}
 
+func TestSyslogModuleRegistration(t *testing.T) {
+	// Check if the module is in the list of all modules
+	allModules := mod.AllModules()
+	assert.Contains(t, allModules, "syslog")
+}
+
+func TestParseSyslogFile(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir, err := os.MkdirTemp("", "syslog_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a test log file
+	logContent := `Mar 15 14:23:45 testhost kernel[0]: Test log entry
+Mar 15 14:23:46 testhost process[123]: Multi-line
+    log entry continues here
+Mar 15 14:23:47 testhost daemon[456]: Another entry`
+
+	logFile := filepath.Join(tempDir, "system.log")
+	err = os.WriteFile(logFile, []byte(logContent), 0600)
+	assert.NoError(t, err)
+
+	// Create test writer and parameters
+	writer := &testutils.TestDataWriter{}
+	collectionTime := time.Now().UTC().Format(time.RFC3339)
 	logger := testutils.NewTestLogger()
-
-	// Setup test parameters
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
+		Logger:              *logger, // Pass as value, not pointer
+		OutputDir:           tempDir,
+		LogsDir:             tempDir,
 		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		CollectionTimestamp: collectionTime,
+	}
+
+	// Parse the file
+	err = parseSyslogFile(logFile, writer, params)
+	assert.NoError(t, err)
+
+	// We should have 4 records (each line is parsed as a separate record)
+	assert.Equal(t, 4, len(writer.Records))
+
+	// Check first record
+	assert.Equal(t, "kernel", writer.Records[0].Data.(map[string]interface{})["processname"])
+	assert.Equal(t, "0", writer.Records[0].Data.(map[string]interface{})["pid"])
+	assert.Equal(t, "Test log entry", writer.Records[0].Data.(map[string]interface{})["message"])
+	assert.Equal(t, logFile, writer.Records[0].SourceFile)
+
+	// Check second and third records (the multi-line entry and its continuation)
+	assert.Equal(t, "process", writer.Records[1].Data.(map[string]interface{})["processname"])
+	assert.Equal(t, "123", writer.Records[1].Data.(map[string]interface{})["pid"])
+	assert.Equal(t, "Multi-line", writer.Records[1].Data.(map[string]interface{})["message"])
+	assert.Equal(t, "log entry continues here", writer.Records[2].Data.(map[string]interface{})["message"])
+}
+
+// TestSyslogModuleRunWithDirectCall tests the Run method by directly calling
+// parseSyslogFile instead of relying on utils.ListFiles
+func TestSyslogModuleRunWithDirectCall(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir, err := os.MkdirTemp("", "syslog_run_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a test log file
+	logContent := `Mar 15 14:23:45 testhost kernel[0]: Test log entry
+Mar 15 14:23:46 testhost process[123]: Another test entry`
+
+	logFile := filepath.Join(tempDir, "system.log")
+	err = os.WriteFile(logFile, []byte(logContent), 0600)
+	assert.NoError(t, err)
+
+	// Create test writer and parameters
+	writer := &testutils.TestDataWriter{}
+	collectionTime := time.Now().UTC().Format(time.RFC3339)
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
 		Logger:              *logger,
+		OutputDir:           tempDir,
+		LogsDir:             tempDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: collectionTime,
 	}
 
-	// Create module instance
-	module := &SyslogModule{
-		Name:        "syslog",
-		Description: "Collects and parses system.log files",
-	}
-
-	// Test GetName
-	t.Run("GetName", func(t *testing.T) {
-		assert.Equal(t, "syslog", module.GetName())
-	})
-
-	// Test GetDescription
-	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "system.log")
-	})
-
-	// Test Run method with mock output
-	t.Run("Run", func(t *testing.T) {
-		// Create a mock output file to simulate the module's output
-		createMockSyslogOutput(t, params)
-
-		// Verify the output file exists
-		outputFile := filepath.Join(tmpDir, "syslog-"+params.CollectionTimestamp+".json")
-		assert.FileExists(t, outputFile)
-
-		// Verify the content of the output file
-		verifySyslogOutput(t, outputFile)
-	})
-}
-
-// Test that the module initializes properly
-func TestSyslogModuleInitialization(t *testing.T) {
-	// Create a new instance with proper initialization
-	module := &SyslogModule{
-		Name:        "syslog",
-		Description: "Collects and parses system.log files",
-	}
-
-	// Verify module is properly instantiated with expected values
-	assert.Equal(t, "syslog", module.Name, "Module name should be initialized")
-	assert.Contains(t, module.Description, "system.log", "Module description should be initialized")
-
-	// Test the module's methods
-	assert.Equal(t, "syslog", module.GetName())
-	assert.Contains(t, module.GetDescription(), "system.log")
-}
-
-// Create a mock syslog output file
-func createMockSyslogOutput(t *testing.T, params mod.ModuleParams) {
-	outputFile := filepath.Join(params.OutputDir, "syslog-"+params.CollectionTimestamp+".json")
-
-	// Create sample syslog records
-	syslogRecords := []utils.Record{
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      "2023-04-15T08:31:27Z",
-			SourceFile:          "/private/var/log/system.log",
-			Data: map[string]interface{}{
-				"systemname":  "MacBook-Pro.local",
-				"processname": "kernel",
-				"pid":         "0",
-				"message":     "System boot completed successfully",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      "2023-04-15T10:45:12Z",
-			SourceFile:          "/private/var/log/system.log",
-			Data: map[string]interface{}{
-				"systemname":  "MacBook-Pro.local",
-				"processname": "UserEventAgent",
-				"pid":         "354",
-				"message":     "Captive: CNPluginHandler en0: Inactive",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      "2023-04-15T14:22:05Z",
-			SourceFile:          "/private/var/log/system.log",
-			Data: map[string]interface{}{
-				"systemname":  "MacBook-Pro.local",
-				"processname": "mDNSResponder",
-				"pid":         "123",
-				"message":     "Query for service _companion-link._tcp.local. completed",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      "2023-04-15T18:05:37Z",
-			SourceFile:          "/private/var/log/system.log",
-			Data: map[string]interface{}{
-				"systemname":  "MacBook-Pro.local",
-				"processname": "securityd",
-				"pid":         "78",
-				"message":     "Session 100 created",
-			},
-		},
-	}
-
-	// Write each syslog record as a JSON line
-	file, err := os.Create(outputFile)
-	assert.NoError(t, err)
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	for _, record := range syslogRecords {
-		err := encoder.Encode(record)
-		assert.NoError(t, err)
-	}
-}
-
-// Verify the syslog output file contains expected data
-func verifySyslogOutput(t *testing.T, outputFile string) {
-	// Read the output file
-	content, err := os.ReadFile(outputFile)
+	// Parse the file directly
+	err = parseSyslogFile(logFile, writer, params)
 	assert.NoError(t, err)
 
-	// Split the content into JSON lines
-	lines := splitSyslogLines(content)
-	assert.GreaterOrEqual(t, len(lines), 4, "Should have at least 4 syslog records")
+	// We should have 2 records
+	assert.Equal(t, 2, len(writer.Records))
 
-	// Verify each syslog entry has the expected fields
-	for _, line := range lines {
-		var record map[string]interface{}
-		err := json.Unmarshal(line, &record)
-		assert.NoError(t, err, "Each line should be valid JSON")
-
-		// Verify common fields
-		assert.NotEmpty(t, record["collection_timestamp"])
-		assert.NotEmpty(t, record["event_timestamp"])
-		assert.NotEmpty(t, record["source_file"])
-		sourceFile, ok := record["source_file"].(string)
-		assert.True(t, ok, "Source file should be a string")
-		assert.Contains(t, sourceFile, "system.log")
-
-		// Check data fields
-		data, ok := record["data"].(map[string]interface{})
-		assert.True(t, ok, "Should have a data field as a map")
-
-		// For most records, verify expected log entry fields
-		if data["processname"] != nil {
-			assert.NotEmpty(t, data["systemname"])
-			assert.NotEmpty(t, data["processname"])
-			assert.NotEmpty(t, data["pid"])
-			assert.NotEmpty(t, data["message"])
-		} else {
-			// For continuation messages, just check the message
-			assert.NotEmpty(t, data["message"])
-		}
-	}
-
-	// Verify specific syslog content
-	contentStr := string(content)
-	assert.Contains(t, contentStr, "kernel")
-	assert.Contains(t, contentStr, "UserEventAgent")
-	assert.Contains(t, contentStr, "mDNSResponder")
-	assert.Contains(t, contentStr, "securityd")
-	assert.Contains(t, contentStr, "MacBook-Pro.local")
-	assert.Contains(t, contentStr, "System boot completed")
-	assert.Contains(t, contentStr, "Captive: CNPluginHandler en0")
+	// Check record fields
+	assert.Equal(t, "kernel", writer.Records[0].Data.(map[string]interface{})["processname"])
+	assert.Equal(t, "0", writer.Records[0].Data.(map[string]interface{})["pid"])
+	assert.Equal(t, logFile, writer.Records[0].SourceFile)
 }
 
-// Helper to split content into lines (handles different line endings)
-func splitSyslogLines(data []byte) [][]byte {
-	var lines [][]byte
-	start := 0
+func TestMultilineHandling(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir, err := os.MkdirTemp("", "syslog_multiline_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
 
-	for i := 0; i < len(data); i++ {
-		if data[i] == '\n' {
-			// Add the line (excluding the newline character)
-			if i > start {
-				lines = append(lines, data[start:i])
-			}
-			start = i + 1
-		}
+	// Create a test log file with multiline entries
+	logContent := `Mar 15 14:23:45 testhost kernel[0]: Starting multiline
+    this is continuation line 1
+    this is continuation line 2
+Mar 15 14:23:46 testhost process[123]: Another entry`
+
+	logFile := filepath.Join(tempDir, "system.log")
+	err = os.WriteFile(logFile, []byte(logContent), 0600)
+	assert.NoError(t, err)
+
+	// Create test writer and parameters
+	writer := &testutils.TestDataWriter{}
+	collectionTime := time.Now().UTC().Format(time.RFC3339)
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		Logger:              *logger, // Pass as value, not pointer
+		OutputDir:           tempDir,
+		LogsDir:             tempDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: collectionTime,
 	}
 
-	// Add the last line if there is one
-	if start < len(data) {
-		lines = append(lines, data[start:])
+	// Parse the file
+	err = parseSyslogFile(logFile, writer, params)
+	assert.NoError(t, err)
+
+	// We should have 3 records based on how the parser is processing the file
+	assert.Equal(t, 3, len(writer.Records))
+
+	// Check the records
+	assert.Equal(t, "kernel", writer.Records[0].Data.(map[string]interface{})["processname"])
+	assert.Equal(t, "0", writer.Records[0].Data.(map[string]interface{})["pid"])
+	assert.Equal(t, "Starting multiline", writer.Records[0].Data.(map[string]interface{})["message"])
+
+	// The syslog parser combines the continuation lines into one with spaces between them
+	assert.Equal(t, "this is continuation line 1 this is continuation line 2", writer.Records[1].Data.(map[string]interface{})["message"])
+
+	// Check final entry
+	assert.Equal(t, "process", writer.Records[2].Data.(map[string]interface{})["processname"])
+	assert.Equal(t, "123", writer.Records[2].Data.(map[string]interface{})["pid"])
+	assert.Equal(t, "Another entry", writer.Records[2].Data.(map[string]interface{})["message"])
+}
+
+func TestWriteRecord(t *testing.T) {
+	// Create a temporary directory
+	tempDir, err := os.MkdirTemp("", "syslog_write_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create test writer and parameters
+	writer := &testutils.TestDataWriter{}
+	collectionTime := time.Now().UTC().Format(time.RFC3339)
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		Logger:              *logger, // Pass as value, not pointer
+		OutputDir:           tempDir,
+		LogsDir:             tempDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: collectionTime,
 	}
 
-	return lines
+	// Test writing a record
+	timestamp := "Mar 15 14:23:45"
+	message := "Test message"
+	logFile := "test.log"
+
+	err = writeRecord(writer, logFile, timestamp, message, params)
+	assert.NoError(t, err)
+
+	// Check the record
+	assert.Equal(t, 1, len(writer.Records))
+	assert.Equal(t, message, writer.Records[0].Data.(map[string]interface{})["message"])
+	assert.Equal(t, logFile, writer.Records[0].SourceFile)
 }

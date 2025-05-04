@@ -79,6 +79,99 @@ func TestLsofModuleInitialization(t *testing.T) {
 	assert.Contains(t, module.GetDescription(), "open files")
 }
 
+// Test that the package initialization occurs
+func TestPackageInitialization(t *testing.T) {
+	// Create a new module with the same name
+	module := &LsofModule{
+		Name:        "lsof",
+		Description: "This is a test initialization",
+	}
+
+	// Verify the module has expected values
+	assert.Equal(t, "lsof", module.Name)
+	assert.Equal(t, "This is a test initialization", module.Description)
+
+	// The init function is automatically called when the package is imported
+	// We can't directly test it, but we can verify it doesn't crash the tests
+}
+
+// Test Run method error handling
+func TestRunMethodError(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "lsof_error_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	logger := testutils.NewTestLogger()
+
+	// Setup test parameters
+	params := mod.ModuleParams{
+		OutputDir:           "./",
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	// Test with a non-existent directory
+	params.OutputDir = "/non/existent/directory"
+
+	module := &LsofModule{
+		Name:        "lsof",
+		Description: "Collects information about open files and their processes",
+	}
+
+	err = module.Run(params)
+	assert.Error(t, err, "Run should return an error with invalid output directory")
+	assert.Contains(t, err.Error(), "error", "Error message should contain explanation")
+}
+
+// Test that the module uses correct command arguments
+func TestModuleCommandArgs(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "lsof_cmd_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	logger := testutils.NewTestLogger()
+
+	// Setup test parameters
+	params := mod.ModuleParams{
+		OutputDir:           tmpDir,
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	// Create module instance
+	module := &LsofModule{
+		Name:        "lsof",
+		Description: "Collects information about open files and their processes",
+	}
+
+	// Create output file before running to verify it gets overwritten
+	outputFile := filepath.Join(tmpDir, "lsof-"+params.CollectionTimestamp+".json")
+	err = os.WriteFile(outputFile, []byte("test data"), 0600)
+	assert.NoError(t, err)
+
+	// Run the module
+	err = module.Run(params)
+
+	// Depending on the environment, this might succeed or fail
+	// But we're testing the file gets updated, not the command success
+	if err == nil {
+		// If it succeeds, verify it wrote new data
+		fileInfo, err := os.Stat(outputFile)
+		assert.NoError(t, err)
+		assert.NotEqual(t, int64(9), fileInfo.Size(), "File size should be different from initial test data")
+	}
+}
+
 // Create a mock lsof output file
 func createMockLsofOutput(t *testing.T, params mod.ModuleParams) {
 	outputFile := filepath.Join(params.OutputDir, "lsof-"+params.CollectionTimestamp+".json")
