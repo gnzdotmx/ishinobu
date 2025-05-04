@@ -197,9 +197,10 @@ func verifySSHOutput(t *testing.T, outputFile string) {
 		srcName, ok := data["src_name"].(string)
 		assert.True(t, ok, "src_name should be a string")
 
-		if srcName == "known_hosts" {
+		switch srcName {
+		case "known_hosts":
 			foundKnownHosts = true
-		} else if srcName == "authorized_keys" {
+		case "authorized_keys":
 			foundAuthorizedKeys = true
 		}
 
@@ -218,9 +219,10 @@ func verifySSHOutput(t *testing.T, outputFile string) {
 		host, ok := data["host"].(string)
 		assert.True(t, ok, "host should be a string")
 
-		if host == "github.com" {
+		switch host {
+		case "github.com":
 			foundGitHub = true
-		} else if host == "192.168.1.10" {
+		case "192.168.1.10":
 			foundPrivateIP = true
 		}
 
@@ -401,23 +403,24 @@ func TestParseSSHFileWithRealFiles(t *testing.T) {
 		t.Fatalf("Failed to generate SSH key: %v", err)
 	}
 
-	// Create a known_hosts file with the public key
+	// Read the generated public key
 	pubKeyPath := keyPath + ".pub"
 	pubKeyData, err := os.ReadFile(pubKeyPath)
 	if err != nil {
 		t.Fatalf("Failed to read public key: %v", err)
 	}
 
+	// Create known_hosts file with the public key
 	knownHostsPath := filepath.Join(tmpDir, "known_hosts")
 	knownHostsContent := "github.com " + string(pubKeyData)
-	err = os.WriteFile(knownHostsPath, []byte(knownHostsContent), 0644)
+	err = os.WriteFile(knownHostsPath, []byte(knownHostsContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create known_hosts file: %v", err)
 	}
 
 	// Create an authorized_keys file with the public key
 	authorizedKeysPath := filepath.Join(tmpDir, "authorized_keys")
-	err = os.WriteFile(authorizedKeysPath, pubKeyData, 0644)
+	err = os.WriteFile(authorizedKeysPath, pubKeyData, 0600)
 	if err != nil {
 		t.Fatalf("Failed to create authorized_keys file: %v", err)
 	}
@@ -491,7 +494,7 @@ func TestParseSSHFileWithRealFiles(t *testing.T) {
 	t.Run("Invalid file error", func(t *testing.T) {
 		// Create an invalid SSH key file
 		invalidPath := filepath.Join(tmpDir, "invalid_key")
-		err = os.WriteFile(invalidPath, []byte("not a valid SSH key"), 0644)
+		err = os.WriteFile(invalidPath, []byte("not a valid SSH key"), 0600)
 		assert.NoError(t, err, "Should create invalid key file")
 
 		// Parsing should return an error
@@ -562,21 +565,21 @@ func TestRunMethodWithFileStructure(t *testing.T) {
 	// Create known_hosts file for test user
 	knownHostsPath := filepath.Join(sshUserDir, "known_hosts")
 	knownHostsContent := "github.com " + string(pubKeyData)
-	err = os.WriteFile(knownHostsPath, []byte(knownHostsContent), 0644)
+	err = os.WriteFile(knownHostsPath, []byte(knownHostsContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create known_hosts file: %v", err)
 	}
 
 	// Create authorized_keys file for test user
 	authorizedKeysPath := filepath.Join(sshUserDir, "authorized_keys")
-	err = os.WriteFile(authorizedKeysPath, pubKeyData, 0644)
+	err = os.WriteFile(authorizedKeysPath, pubKeyData, 0600)
 	if err != nil {
 		t.Fatalf("Failed to create authorized_keys file: %v", err)
 	}
 
 	// Create authorized_keys file for root
 	rootAuthorizedKeysPath := filepath.Join(sshVarDir, "authorized_keys")
-	err = os.WriteFile(rootAuthorizedKeysPath, pubKeyData, 0644)
+	err = os.WriteFile(rootAuthorizedKeysPath, pubKeyData, 0600)
 	if err != nil {
 		t.Fatalf("Failed to create root authorized_keys file: %v", err)
 	}
@@ -635,13 +638,14 @@ func TestRunMethodWithFileStructure(t *testing.T) {
 			continue
 		}
 
-		if username == "testuser" && srcName == "known_hosts" {
+		switch {
+		case username == "testuser" && srcName == "known_hosts":
 			foundTestUserKnownHosts = true
 			assert.Equal(t, knownHostsPath, record.SourceFile)
-		} else if username == "testuser" && srcName == "authorized_keys" {
+		case username == "testuser" && srcName == "authorized_keys":
 			foundTestUserAuthorizedKeys = true
 			assert.Equal(t, authorizedKeysPath, record.SourceFile)
-		} else if username == "root" && srcName == "authorized_keys" {
+		case username == "root" && srcName == "authorized_keys":
 			foundRootAuthorizedKeys = true
 			assert.Equal(t, rootAuthorizedKeysPath, record.SourceFile)
 		}

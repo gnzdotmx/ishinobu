@@ -9,6 +9,7 @@ package syslog
 import (
 	"bufio"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,13 @@ import (
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
+)
+
+// Error definitions
+var (
+	errOpenFile       = errors.New("error opening file")
+	errReadFile       = errors.New("error reading file")
+	errCreateGzReader = errors.New("error creating gzip reader")
 )
 
 type SyslogModule struct {
@@ -100,7 +108,7 @@ func parseSyslogFile(logFile string, writer utils.DataWriter, params mod.ModuleP
 
 	file, err := os.Open(logFile)
 	if err != nil {
-		return fmt.Errorf("error opening file %s: %v", logFile, err)
+		return fmt.Errorf("%w: %s: %v", errOpenFile, logFile, err)
 	}
 	defer file.Close()
 
@@ -108,7 +116,7 @@ func parseSyslogFile(logFile string, writer utils.DataWriter, params mod.ModuleP
 	if strings.HasSuffix(logFile, ".gz") {
 		gzReader, err := gzip.NewReader(file)
 		if err != nil {
-			return fmt.Errorf("error creating gzip reader for %s: %v", logFile, err)
+			return fmt.Errorf("%w for %s: %v", errCreateGzReader, logFile, err)
 		}
 		defer gzReader.Close()
 		reader = gzReader
@@ -190,7 +198,7 @@ func parseSyslogFile(logFile string, writer utils.DataWriter, params mod.ModuleP
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading file %s: %v", logFile, err)
+		return fmt.Errorf("%w %s: %v", errReadFile, logFile, err)
 	}
 
 	return nil

@@ -14,6 +14,7 @@ import (
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -199,7 +200,7 @@ func TestVisitSafariHistoryWithMockData(t *testing.T) {
 	// Serialize the plist data
 	plistData, err := plist.Marshal(recentlyClosedData, plist.XMLFormat)
 	require.NoError(t, err)
-	err = os.WriteFile(recentlyClosedTabsFile, plistData, 0644)
+	err = os.WriteFile(recentlyClosedTabsFile, plistData, 0600)
 	require.NoError(t, err)
 
 	// Setup test parameters
@@ -287,7 +288,7 @@ func TestDownloadsSafariHistoryWithMockData(t *testing.T) {
 	// Serialize the plist data
 	plistData, err := plist.Marshal(downloadsData, plist.XMLFormat)
 	require.NoError(t, err)
-	err = os.WriteFile(downloadsFile, plistData, 0644)
+	err = os.WriteFile(downloadsFile, plistData, 0600)
 	require.NoError(t, err)
 
 	// Setup test parameters
@@ -319,7 +320,8 @@ func TestDownloadsSafariHistoryWithMockData(t *testing.T) {
 		require.True(t, ok)
 
 		if url, ok := data["download_url"].(string); ok {
-			if url == "https://example.com/file1.pdf" {
+			switch url {
+			case "https://example.com/file1.pdf":
 				foundFile1 = true
 				assert.Equal(t, "/Users/testuser/Downloads/file1.pdf", data["download_path"])
 				// Check type and then assert - the implementation might convert to uint64
@@ -331,7 +333,7 @@ func TestDownloadsSafariHistoryWithMockData(t *testing.T) {
 				case int64:
 					assert.Equal(t, int64(1024000), val)
 				}
-			} else if url == "https://test.com/file2.zip" {
+			case "https://test.com/file2.zip":
 				foundFile2 = true
 				assert.Equal(t, "/Users/testuser/Downloads/file2.zip", data["download_path"])
 				// Check type and then assert - the implementation might convert to uint64
@@ -374,8 +376,8 @@ func TestGetSafariExtensionsWithMockData(t *testing.T) {
 	ext2File := filepath.Join(extensionsDir, "extension2.safariextz")
 
 	// Create empty files
-	require.NoError(t, os.WriteFile(ext1File, []byte("dummy content"), 0644))
-	require.NoError(t, os.WriteFile(ext2File, []byte("dummy content"), 0644))
+	require.NoError(t, os.WriteFile(ext1File, []byte("dummy content"), 0600))
+	require.NoError(t, os.WriteFile(ext2File, []byte("dummy content"), 0600))
 
 	// Create test data for Extensions.plist
 	extensionsData := map[string]interface{}{
@@ -402,7 +404,7 @@ func TestGetSafariExtensionsWithMockData(t *testing.T) {
 	// Serialize the plist data
 	plistData, err := plist.Marshal(extensionsData, plist.XMLFormat)
 	require.NoError(t, err)
-	err = os.WriteFile(extensionsFile, plistData, 0644)
+	err = os.WriteFile(extensionsFile, plistData, 0600)
 	require.NoError(t, err)
 
 	// Setup test parameters
@@ -434,14 +436,15 @@ func TestGetSafariExtensionsWithMockData(t *testing.T) {
 		require.True(t, ok)
 
 		if name, ok := data["name"].(string); ok {
-			if name == "extension1.safariextz" {
+			switch name {
+			case "extension1.safariextz":
 				foundExt1 = true
 				assert.Equal(t, "extension1.safariextension", data["bundle_directory"])
 				assert.Equal(t, true, data["enabled"])
 				assert.Equal(t, true, data["apple_signed"])
 				assert.Equal(t, "ABCD1234", data["developer_id"])
 				assert.Equal(t, "com.example.extension1", data["bundle_id"])
-			} else if name == "extension2.safariextz" {
+			case "extension2.safariextz":
 				foundExt2 = true
 				assert.Equal(t, "extension2.safariextension", data["bundle_directory"])
 				assert.Equal(t, false, data["enabled"])

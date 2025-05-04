@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +36,7 @@ Mar 15 14:23:46 testhost process[123]: Multi-line
 Mar 15 14:23:47 testhost daemon[456]: Another entry`
 
 	logFile := filepath.Join(tempDir, "system.log")
-	err = os.WriteFile(logFile, []byte(logContent), 0644)
+	err = os.WriteFile(logFile, []byte(logContent), 0600)
 	assert.NoError(t, err)
 
 	// Create test writer and parameters
@@ -83,7 +84,7 @@ func TestSyslogModuleRunWithDirectCall(t *testing.T) {
 Mar 15 14:23:46 testhost process[123]: Another test entry`
 
 	logFile := filepath.Join(tempDir, "system.log")
-	err = os.WriteFile(logFile, []byte(logContent), 0644)
+	err = os.WriteFile(logFile, []byte(logContent), 0600)
 	assert.NoError(t, err)
 
 	// Create test writer and parameters
@@ -124,7 +125,7 @@ func TestMultilineHandling(t *testing.T) {
 Mar 15 14:23:46 testhost process[123]: Another entry`
 
 	logFile := filepath.Join(tempDir, "system.log")
-	err = os.WriteFile(logFile, []byte(logContent), 0644)
+	err = os.WriteFile(logFile, []byte(logContent), 0600)
 	assert.NoError(t, err)
 
 	// Create test writer and parameters
