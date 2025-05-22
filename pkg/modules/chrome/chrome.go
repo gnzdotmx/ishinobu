@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
@@ -463,25 +464,25 @@ func getPopupChromeSettings(location string, profileUsr string, moduleName strin
 	preferencesMap, ok := preferences["profile"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No profile data found")
-		return fmt.Errorf("no profile data found")
+		return errNoProfileData
 	}
 
 	contentSettings, ok := preferencesMap["content_settings"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No content settings data found")
-		return fmt.Errorf("no content settings data found")
+		return errNoContentSettings
 	}
 
 	exceptions, ok := contentSettings["exceptions"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No exceptions data found")
-		return fmt.Errorf("no exceptions data found")
+		return errNoExceptions
 	}
 
 	popups, ok := exceptions["popups"].(map[string]interface{})
 	if !ok {
 		params.Logger.Debug("No popups data found")
-		return fmt.Errorf("no popups data found")
+		return errNoPopups
 	}
 
 	for key, value := range popups {
@@ -747,6 +748,13 @@ func decodeAnonymization(anonStr string) string {
 	if strings.Contains(decodedStr, "chrome-extension://") {
 		parts := strings.Split(decodedStr, "chrome-extension://")
 		if len(parts) > 1 {
+			// Remove any non-alphanumeric characters or spaces
+			parts[1] = strings.Map(func(r rune) rune {
+				if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' {
+					return r
+				}
+				return -1
+			}, parts[1])
 			return parts[1]
 		}
 	}
@@ -776,7 +784,7 @@ func getExtensionName(location string, profileUsr string, extensionID string) (s
 	manifestPath := filepath.Join(location, profileUsr, "Extensions", extensionID, "*", "manifest.json")
 	manifestFiles, err := utils.ListFiles(manifestPath)
 	if err != nil || len(manifestFiles) == 0 {
-		return "", fmt.Errorf("%w: %s", errManifestNotFound, extensionID)
+		return "", fmt.Errorf("%w: %s", errNoExtensionName, extensionID)
 	}
 
 	// Read manifest file
@@ -793,8 +801,15 @@ func getExtensionName(location string, profileUsr string, extensionID string) (s
 
 	// Get name
 	if name, ok := manifest["name"].(string); ok {
+		// Remove any non-alphanumeric characters or spaces
+		name = strings.Map(func(r rune) rune {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' {
+				return r
+			}
+			return -1
+		}, name)
 		return name, nil
 	}
 
-	return "", fmt.Errorf("no name found for extension %s", extensionID)
+	return "", fmt.Errorf("%w: %s", errNoExtensionName, extensionID)
 }

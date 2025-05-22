@@ -1,392 +1,289 @@
 package terminal
 
 import (
-	"encoding/json"
+	"encoding/binary"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 
-func TestTerminalModule(t *testing.T) {
-	// Create temporary directory for test outputs
-	tmpDir, err := os.MkdirTemp("", "terminal_test")
-	if err != nil {
-		t.Fatal(err)
+func TestIntToUInt32(t *testing.T) {
+	t.Run("Negative", func(t *testing.T) {
+		_, err := intToUInt32(-1)
+		assert.Error(t, err)
+	})
+	t.Run("TooLarge", func(t *testing.T) {
+		_, err := intToUInt32(int(^uint32(0)) + 1)
+		assert.Error(t, err)
+	})
+	t.Run("Valid", func(t *testing.T) {
+		val, err := intToUInt32(42)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(42), val)
+	})
+}
+
+func TestDecryptBlockErrors(t *testing.T) {
+	key := make([]byte, 16)
+
+	// Too short for IV
+	data := make([]byte, 8)
+	_, err := decryptBlock(data, key)
+	assert.ErrorIs(t, err, errDataIVSizeMissmatch)
+
+	// Valid IV, ciphertext not a multiple of block size
+	iv := make([]byte, 16)
+	ciphertext := make([]byte, 17) // not a multiple of block size
+	data = append([]byte{}, iv...)
+	data = append(data, ciphertext...)
+	_, err = decryptBlock(data, key)
+	assert.ErrorIs(t, err, errInvalidCiperTextSize)
+
+	// Valid IV and ciphertext, but invalid padding
+	ciphertext = make([]byte, 16)
+	for i := range ciphertext {
+		ciphertext[i] = 1
 	}
-	defer os.RemoveAll(tmpDir)
+	data = append([]byte{}, iv...)
+	data = append(data, ciphertext...)
+	data[len(data)-1] = 0 // invalid padding
+	_, err = decryptBlock(data, key)
+	assert.ErrorIs(t, err, errInvalidPaddingLength)
+}
 
-	logger := testutils.NewTestLogger()
-
-	// Setup test parameters
+func TestProcessTerminalStateErrors(t *testing.T) {
+	tmpDir := t.TempDir()
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
 		LogsDir:             tmpDir,
+		OutputDir:           tmpDir,
 		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
-		Logger:              *logger,
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+		Logger:              *testutils.NewTestLogger(),
 	}
+	writer := &testutils.TestDataWriter{Records: []utils.Record{}}
+	location := filepath.Join(tmpDir, "fakeuser")
+	err := os.MkdirAll(location, 0755)
+	require.NoError(t, err)
 
-	// Create module instance
-	module := &TerminalModule{
-		Name:        "terminal",
-		Description: "Collects and parses Terminal.app saved state files and terminal histories",
-	}
-
-	// Test GetName
-	t.Run("GetName", func(t *testing.T) {
-		assert.Equal(t, "terminal", module.GetName())
-	})
-
-	// Test GetDescription
-	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "Terminal.app")
-		assert.Contains(t, module.GetDescription(), "histories")
-	})
-
-	// Test Terminal State collection with mock output
-	t.Run("TerminalState", func(t *testing.T) {
-		// Create a mock output file for terminal state
-		createMockTerminalStateOutput(t, params)
-
-		// Verify the output file exists
-		outputFile := filepath.Join(tmpDir, "terminal-state-"+params.CollectionTimestamp+".json")
-		assert.FileExists(t, outputFile)
-
-		// Verify the content of the output file
-		verifyTerminalStateOutput(t, outputFile)
-	})
-
-	// Test Terminal History collection with mock output
-	t.Run("TerminalHistory", func(t *testing.T) {
-		// Create a mock output file for terminal history
-		createMockTerminalHistoryOutput(t, params)
-
-		// Verify the output file exists
-		outputFile := filepath.Join(tmpDir, "terminal-history-"+params.CollectionTimestamp+".json")
-		assert.FileExists(t, outputFile)
-
-		// Verify the content of the output file
-		verifyTerminalHistoryOutput(t, outputFile)
-	})
-}
-
-// Test that the module initializes properly
-func TestTerminalModuleInitialization(t *testing.T) {
-	// Create a new instance with proper initialization
-	module := &TerminalModule{
-		Name:        "terminal",
-		Description: "Collects and parses Terminal.app saved state files and terminal histories",
-	}
-
-	// Verify module is properly instantiated with expected values
-	assert.Equal(t, "terminal", module.Name, "Module name should be initialized")
-	assert.Contains(t, module.Description, "Terminal.app", "Module description should be initialized")
-
-	// Test the module's methods
-	assert.Equal(t, "terminal", module.GetName())
-	assert.Contains(t, module.GetDescription(), "terminal histories")
-}
-
-// Create a mock terminal state output file
-func createMockTerminalStateOutput(t *testing.T, params mod.ModuleParams) {
-	outputFile := filepath.Join(params.OutputDir, "terminal-state-"+params.CollectionTimestamp+".json")
-
-	// Create sample terminal state records
-	records := []utils.Record{
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "Terminal.savedState/Window_1",
-			Data: map[string]interface{}{
-				"user":                             "testuser",
-				"window_id":                        uint32(1),
-				"datablock":                        1,
-				"window_title":                     "Terminal - bash",
-				"tab_working_directory_url":        "file:///Users/testuser/Documents/",
-				"tab_working_directory_url_string": "/Users/testuser/Documents/",
-				"line_index":                       1,
-				"line":                             "ls -la",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "Terminal.savedState/Window_1",
-			Data: map[string]interface{}{
-				"user":                             "testuser",
-				"window_id":                        uint32(1),
-				"datablock":                        1,
-				"window_title":                     "Terminal - bash",
-				"tab_working_directory_url":        "file:///Users/testuser/Documents/",
-				"tab_working_directory_url_string": "/Users/testuser/Documents/",
-				"line_index":                       2,
-				"line":                             "cd project",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "Terminal.savedState/Window_2",
-			Data: map[string]interface{}{
-				"user":                             "admin",
-				"window_id":                        uint32(2),
-				"datablock":                        1,
-				"window_title":                     "Terminal - zsh",
-				"tab_working_directory_url":        "file:///Users/admin/",
-				"tab_working_directory_url_string": "/Users/admin/",
-				"line_index":                       1,
-				"line":                             "sudo ls -l /var/log",
-			},
-		},
-	}
-
-	// Write records to file
-	file, err := os.Create(outputFile)
-	assert.NoError(t, err)
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	for _, record := range records {
-		err := encoder.Encode(record)
+	t.Run("MissingWindowsPlist", func(t *testing.T) {
+		err := os.WriteFile(filepath.Join(location, "data.data"), []byte("NSCR1000"), 0600)
 		assert.NoError(t, err)
-	}
-}
-
-// Create a mock terminal history output file
-func createMockTerminalHistoryOutput(t *testing.T, params mod.ModuleParams) {
-	outputFile := filepath.Join(params.OutputDir, "terminal-history-"+params.CollectionTimestamp+".json")
-
-	// Create sample terminal history records
-	records := []utils.Record{
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Users/testuser/.bash_history",
-			Data: map[string]interface{}{
-				"username": "testuser",
-				"command":  "cd ~/Documents",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Users/testuser/.bash_history",
-			Data: map[string]interface{}{
-				"username": "testuser",
-				"command":  "git clone https://github.com/example/repo.git",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Users/admin/.zsh_history",
-			Data: map[string]interface{}{
-				"username": "admin",
-				"command":  "sudo apt update && sudo apt upgrade -y",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Users/admin/.bash_sessions/session1",
-			Data: map[string]interface{}{
-				"username": "admin",
-				"command":  "cd /var/log && grep -i error syslog",
-			},
-		},
-	}
-
-	// Write records to file
-	file, err := os.Create(outputFile)
-	assert.NoError(t, err)
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	for _, record := range records {
-		err := encoder.Encode(record)
+		err = processTerminalState(location, params, writer)
+		assert.ErrorIs(t, err, errWindowsPlistNotFound)
+	})
+	t.Run("MissingDataData", func(t *testing.T) {
+		plistContent := `<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict></dict></plist>`
+		err := os.WriteFile(filepath.Join(location, "windows.plist"), []byte(plistContent), 0600)
 		assert.NoError(t, err)
-	}
+		os.Remove(filepath.Join(location, "data.data"))
+		err = processTerminalState(location, params, writer)
+		assert.ErrorIs(t, err, errDataDataNotFound)
+	})
+	// Invalid header
+	t.Run("InvalidHeader", func(t *testing.T) {
+		plistContent := `<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict></dict></plist>`
+		err := os.WriteFile(filepath.Join(location, "windows.plist"), []byte(plistContent), 0600)
+		assert.NoError(t, err)
+		err = os.WriteFile(filepath.Join(location, "data.data"), []byte("BADHDR"), 0600)
+		assert.NoError(t, err)
+		err = processTerminalState(location, params, writer)
+		assert.ErrorIs(t, err, errInvalidDataDataFileHeader)
+	})
 }
 
-// Verify the terminal state output file contains expected data
-func verifyTerminalStateOutput(t *testing.T, outputFile string) {
-	// Read the output file
-	content, err := os.ReadFile(outputFile)
+func TestCollectTerminalHistory(t *testing.T) {
+	tmpDir := t.TempDir()
+	params := mod.ModuleParams{
+		LogsDir:             tmpDir,
+		OutputDir:           tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+		Logger:              *testutils.NewTestLogger(),
+	}
+	module := &TerminalModule{Name: "terminal", Description: "desc"}
+
+	// Create a fake history file
+	histFile := filepath.Join(tmpDir, ".bash_history")
+	err := os.WriteFile(histFile, []byte("ls\necho test\n"), 0600)
 	assert.NoError(t, err)
 
-	// Split the content into JSON lines
-	lines := splitTerminalLines(content)
-	assert.NotEmpty(t, lines, "Output file should contain data")
-
-	// Track what we've found for verification
-	var foundTestUser, foundAdmin bool
-	var foundWindowOne, foundWindowTwo bool
-	var foundCdProject, foundSudoLs bool
-
-	// Verify each record
-	for _, line := range lines {
-		var record map[string]interface{}
-		err := json.Unmarshal(line, &record)
-		assert.NoError(t, err, "Each line should be valid JSON")
-
-		// Verify common fields
-		assert.NotEmpty(t, record["collection_timestamp"])
-		assert.NotEmpty(t, record["event_timestamp"])
-		assert.NotEmpty(t, record["source_file"])
-		sourceFile, ok := record["source_file"].(string)
-		assert.True(t, ok, "Source file should be a string")
-		assert.Contains(t, sourceFile, "Terminal.savedState/Window_")
-
-		// Check data fields
-		data, ok := record["data"].(map[string]interface{})
-		assert.True(t, ok, "Should have data field as a map")
-
-		// Verify terminal state fields
-		assert.NotEmpty(t, data["user"])
-		assert.NotEmpty(t, data["window_id"])
-		assert.NotEmpty(t, data["window_title"])
-		assert.NotEmpty(t, data["tab_working_directory_url"])
-		assert.NotEmpty(t, data["line"])
-
-		// Track what we've found
-		user, _ := data["user"].(string)
-		if user == "testuser" {
-			foundTestUser = true
-		} else if user == "admin" {
-			foundAdmin = true
-		}
-
-		windowID, ok := data["window_id"].(float64) // JSON unmarshals numbers as float64
-		if ok {
-			if windowID == 1 {
-				foundWindowOne = true
-			} else if windowID == 2 {
-				foundWindowTwo = true
-			}
-		}
-
-		line, _ := data["line"].(string)
-		if line == "cd project" {
-			foundCdProject = true
-		} else if line == "sudo ls -l /var/log" {
-			foundSudoLs = true
-		}
-	}
-
-	// Verify we found everything we expected
-	assert.True(t, foundTestUser, "Should have found testuser")
-	assert.True(t, foundAdmin, "Should have found admin")
-	assert.True(t, foundWindowOne, "Should have found window 1")
-	assert.True(t, foundWindowTwo, "Should have found window 2")
-	assert.True(t, foundCdProject, "Should have found 'cd project' command")
-	assert.True(t, foundSudoLs, "Should have found 'sudo ls' command")
+	err = module.collectTerminalHistory([]string{histFile}, params)
+	assert.NoError(t, err)
 }
 
-// Verify the terminal history output file contains expected data
-func verifyTerminalHistoryOutput(t *testing.T, outputFile string) {
-	// Read the output file
-	content, err := os.ReadFile(outputFile)
+func TestCollectTerminalStateNoFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	params := mod.ModuleParams{
+		LogsDir:             tmpDir,
+		OutputDir:           tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+		Logger:              *testutils.NewTestLogger(),
+	}
+	module := &TerminalModule{Name: "terminal", Description: "desc"}
+	err := module.collectTerminalState([]string{}, params)
+	assert.NoError(t, err)
+}
+
+func TestRunHandlesErrorsGracefully(t *testing.T) {
+	tmpDir := t.TempDir()
+	params := mod.ModuleParams{
+		LogsDir:             tmpDir,
+		OutputDir:           tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+		Logger:              *testutils.NewTestLogger(),
+	}
+	module := &TerminalModule{Name: "terminal", Description: "desc"}
+	// Should not panic or return error even if no files exist
+	err := module.Run(params)
+	assert.NoError(t, err)
+}
+
+func TestGetDescription_Coverage(t *testing.T) {
+	m := &TerminalModule{Description: "desc"}
+	assert.Equal(t, "desc", m.GetDescription())
+}
+
+func TestCollectTerminalHistory_MultiUserAndError(t *testing.T) {
+	tmpDir := t.TempDir()
+	params := mod.ModuleParams{
+		LogsDir:             tmpDir,
+		OutputDir:           tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+		Logger:              *testutils.NewTestLogger(),
+	}
+	module := &TerminalModule{Name: "terminal", Description: "desc"}
+
+	user1 := "user1"
+	user2 := "user2"
+	histFile1 := filepath.Join(tmpDir, user1+"_history")
+	histFile2 := filepath.Join(tmpDir, user2+"_history")
+	err := os.WriteFile(histFile1, []byte("ls\nwhoami\n"), 0600)
+	assert.NoError(t, err)
+	err = os.WriteFile(histFile2, []byte("pwd\n"), 0600)
 	assert.NoError(t, err)
 
-	// Split the content into JSON lines
-	lines := splitTerminalLines(content)
-	assert.NotEmpty(t, lines, "Output file should contain data")
+	badFile := filepath.Join(tmpDir, "bad_history")
+	err = os.WriteFile(badFile, []byte("fail"), 0000)
+	assert.NoError(t, err)
 
-	// Track what we've found for verification
-	var foundTestUser, foundAdmin bool
-	var foundBashHistory, foundZshHistory, foundBashSession bool
-	var foundGitClone, foundSudoApt, foundGrepError bool
-
-	// Verify each record
-	for _, line := range lines {
-		var record map[string]interface{}
-		err := json.Unmarshal(line, &record)
-		assert.NoError(t, err, "Each line should be valid JSON")
-
-		// Verify common fields
-		assert.NotEmpty(t, record["collection_timestamp"])
-		assert.NotEmpty(t, record["event_timestamp"])
-		assert.NotEmpty(t, record["source_file"])
-
-		// Check data fields
-		data, ok := record["data"].(map[string]interface{})
-		assert.True(t, ok, "Should have data field as a map")
-
-		// Verify terminal history fields
-		assert.NotEmpty(t, data["username"])
-		assert.NotEmpty(t, data["command"])
-
-		// Track what we've found
-		username, _ := data["username"].(string)
-		if username == "testuser" {
-			foundTestUser = true
-		} else if username == "admin" {
-			foundAdmin = true
-		}
-
-		sourceFile, ok := record["source_file"].(string)
-		assert.True(t, ok, "Source file should be a string")
-
-		switch {
-		case strings.Contains(sourceFile, ".bash_history"):
-			foundBashHistory = true
-		case strings.Contains(sourceFile, ".zsh_history"):
-			foundZshHistory = true
-		case strings.Contains(sourceFile, ".bash_sessions"):
-			foundBashSession = true
-		}
-
-		command, ok := data["command"].(string)
-		assert.True(t, ok, "Command should be a string")
-
-		switch {
-		case strings.Contains(command, "git clone"):
-			foundGitClone = true
-		case strings.Contains(command, "sudo apt"):
-			foundSudoApt = true
-		case strings.Contains(command, "grep -i error"):
-			foundGrepError = true
-		}
-	}
-
-	// Verify we found everything we expected
-	assert.True(t, foundTestUser, "Should have found testuser")
-	assert.True(t, foundAdmin, "Should have found admin")
-	assert.True(t, foundBashHistory, "Should have found bash history")
-	assert.True(t, foundZshHistory, "Should have found zsh history")
-	assert.True(t, foundBashSession, "Should have found bash session")
-	assert.True(t, foundGitClone, "Should have found git clone command")
-	assert.True(t, foundSudoApt, "Should have found apt command")
-	assert.True(t, foundGrepError, "Should have found grep command")
+	err = module.collectTerminalHistory([]string{histFile1, histFile2, badFile}, params)
+	assert.NoError(t, err)
 }
 
-// Helper to split content into lines (handles different line endings)
-func splitTerminalLines(data []byte) [][]byte {
-	var lines [][]byte
-	start := 0
-
-	for i := 0; i < len(data); i++ {
-		if data[i] == '\n' {
-			// Add the line (excluding the newline character)
-			if i > start {
-				lines = append(lines, data[start:i])
-			}
-			start = i + 1
-		}
+func TestProcessTerminalState_BlockBranches(t *testing.T) {
+	tmpDir := t.TempDir()
+	params := mod.ModuleParams{
+		LogsDir:             tmpDir,
+		OutputDir:           tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(time.RFC3339),
+		Logger:              *testutils.NewTestLogger(),
 	}
+	writer := &testutils.TestDataWriter{Records: []utils.Record{}}
+	location := filepath.Join(tmpDir, "user")
+	err := os.MkdirAll(location, 0755)
+	require.NoError(t, err)
 
-	// Add the last line if there is one
-	if start < len(data) {
-		lines = append(lines, data[start:])
+	windowID := uint32(123)
+	// key := []byte("1234567890abcdef") // removed unused variable
+	plistContent := `<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict></dict></plist>`
+	err = os.WriteFile(filepath.Join(location, "windows.plist"), []byte(plistContent), 0600)
+	assert.NoError(t, err)
+	blockHeader := make([]byte, 8)
+	binary.BigEndian.PutUint32(blockHeader[:4], windowID)
+	binary.BigEndian.PutUint32(blockHeader[4:8], uint32(8))
+	block := append([]byte{}, blockHeader...)
+	block = append(block, []byte{}...)
+	data := append([]byte("NSCR1000"), block...)
+	err = os.WriteFile(filepath.Join(location, "data.data"), data, 0600)
+	assert.NoError(t, err)
+	// This test ensures the block loop is exercised with valid headers, but no records are written.
+	err = processTerminalState(location, params, writer)
+	assert.Error(t, err) // Should error due to plist parse failure
+}
+
+func TestGetDecryptionKey_Coverage(t *testing.T) {
+	windowID := uint32(42)
+	key := []byte("keybytes01234567")
+	// Valid case
+	windowsData := map[string]interface{}{
+		"WindowList": []interface{}{
+			map[string]interface{}{
+				"StateID":   windowID,
+				"NSDataKey": key,
+			},
+		},
 	}
+	k, ok := getDecryptionKey(windowsData, windowID)
+	assert.True(t, ok)
+	assert.Equal(t, key, k)
+	// WindowList wrong type
+	windowsData = map[string]interface{}{"WindowList": 123}
+	_, ok = getDecryptionKey(windowsData, windowID)
+	assert.False(t, ok)
+	// Window missing fields
+	windowsData = map[string]interface{}{"WindowList": []interface{}{map[string]interface{}{}}}
+	_, ok = getDecryptionKey(windowsData, windowID)
+	assert.False(t, ok)
+	// StateID wrong type
+	windowsData = map[string]interface{}{"WindowList": []interface{}{map[string]interface{}{"StateID": "notuint32"}}}
+	_, ok = getDecryptionKey(windowsData, windowID)
+	assert.False(t, ok)
+}
 
-	return lines
+func TestWriteTerminalStateRecord_Coverage(t *testing.T) {
+	writer := &testutils.TestDataWriter{Records: []utils.Record{}}
+	params := mod.ModuleParams{
+		LogsDir:             "",
+		OutputDir:           "",
+		ExportFormat:        "json",
+		CollectionTimestamp: "2024-01-01T00:00:00Z",
+		Logger:              *testutils.NewTestLogger(),
+	}
+	// Full valid nested structure
+	terminalState := map[string]interface{}{
+		"NSTitle": "title",
+		"TTWindowState": map[string]interface{}{
+			"Window Settings": []interface{}{
+				map[string]interface{}{
+					"Tab Working Directory URL":        "file:///Users/test",
+					"Tab Working Directory URL String": "/Users/test",
+					"Tab Contents v2":                  []interface{}{"line1", "line2"},
+				},
+			},
+		},
+	}
+	err := writeTerminalStateRecord(terminalState, "user", 1, 1, writer, params)
+	assert.NoError(t, err)
+	assert.Len(t, writer.Records, 2)
+	// Missing TTWindowState
+	err = writeTerminalStateRecord(map[string]interface{}{}, "user", 1, 1, writer, params)
+	assert.NoError(t, err)
+	// Window Settings wrong type
+	terminalState = map[string]interface{}{
+		"TTWindowState": map[string]interface{}{"Window Settings": 123},
+	}
+	err = writeTerminalStateRecord(terminalState, "user", 1, 1, writer, params)
+	assert.NoError(t, err)
+	// Tab Contents v2 wrong type
+	terminalState = map[string]interface{}{
+		"TTWindowState": map[string]interface{}{
+			"Window Settings": []interface{}{
+				map[string]interface{}{"Tab Contents v2": 123},
+			},
+		},
+	}
+	err = writeTerminalStateRecord(terminalState, "user", 1, 1, writer, params)
+	assert.NoError(t, err)
 }

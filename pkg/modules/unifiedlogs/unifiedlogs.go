@@ -13,7 +13,6 @@ package unifiedlogs
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -116,12 +115,8 @@ func (m *UnifiedLogsModule) Run(params mod.ModuleParams) error {
 	// Run each log collection command
 	for _, cmd := range commands {
 
-		// Run the command
-		cmdexec := exec.Command("bash", "-c", cmd.Command) // #nosec G204
-
-		// Set the TZ environment variable to UTC
-		cmdexec.Env = append(cmdexec.Env, "TZ=UTC")
-		output, err := cmdexec.CombinedOutput()
+		// Run the command using utils.ExecuteCommandWithEnv
+		output, err := utils.ExecuteCommandWithEnv("bash", []string{"TZ=UTC"}, "-c", cmd.Command)
 		if err != nil {
 			params.Logger.Debug("Command output: %s", output)
 		}
@@ -129,7 +124,7 @@ func (m *UnifiedLogsModule) Run(params mod.ModuleParams) error {
 		var logEntries []map[string]interface{}
 
 		// Parse the JSON output
-		err = json.Unmarshal(output, &logEntries)
+		err = json.Unmarshal([]byte(output), &logEntries)
 		if err != nil {
 			params.Logger.Debug("Error parsing JSON output: %v", err)
 		}

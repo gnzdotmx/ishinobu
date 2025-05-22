@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -111,7 +113,7 @@ func CreateSQLiteTestDB(t *testing.T, dbPath string, schema string, rows [][]int
 		columnsList := strings.Join(columns, ", ")
 
 		// Create INSERT statement
-		insertStmt := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		insertStmt := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", // #nosec G201
 			tableName, columnsList, placeholders)
 
 		// Insert each row
@@ -120,4 +122,11 @@ func CreateSQLiteTestDB(t *testing.T, dbPath string, schema string, rows [][]int
 			assert.NoError(t, err, "Failed to insert test data")
 		}
 	}
+}
+
+// ExecCommand is a variable that holds the function to execute system commands.
+// It can be replaced in tests to mock command execution.
+var ExecCommand = func(name string, arg ...string) ([]byte, error) {
+	cmd := exec.Command(name, arg...)
+	return cmd.Output()
 }

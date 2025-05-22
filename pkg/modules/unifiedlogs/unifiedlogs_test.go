@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -245,4 +246,148 @@ func splitUnifiedLogsLines(data []byte) [][]byte {
 	}
 
 	return lines
+}
+
+func TestUnifiedLogsModule_Run_Coverage(t *testing.T) {
+	// Create a temporary directory for test outputs
+	tmpDir := t.TempDir()
+
+	// Create test logger
+	logger := testutils.NewTestLogger()
+
+	// Setup test parameters
+	params := mod.ModuleParams{
+		OutputDir:           "./",
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	// Create module instance
+	module := &UnifiedLogsModule{
+		Name:        "unifiedlogs",
+		Description: "Collects and parses logs from unified logging system",
+	}
+
+	// Save original ExecuteCommandWithEnv and restore after test
+	originalExecuteCommandWithEnv := utils.ExecuteCommandWithEnv
+	defer func() { utils.ExecuteCommandWithEnv = originalExecuteCommandWithEnv }()
+
+	// Test cases
+	testCases := []struct {
+		name           string
+		mockOutput     string
+		expectedError  bool
+		expectedLogs   int
+		commandMatcher func(string) bool
+	}{
+		{
+			name: "Successful log collection",
+			mockOutput: `[
+				{
+					"timestamp": "2023-05-10 10:25:30.000000+0000",
+					"eventMessage": "sudo: user-name : TTY=ttys001 ; PWD=/Users/user-name ; USER=root ; COMMAND=/usr/bin/ls",
+					"eventType": "logEvent",
+					"source": "sudo",
+					"subsystem": "com.apple.sudo",
+					"formatString": "%{public}s: %{public}s : TTY=%{public}s ; PWD=%{public}s ; USER=%{public}s ; COMMAND=%{public}s",
+					"activityID": 54321,
+					"category": "sudo",
+					"threadID": 789456,
+					"senderImageUUID": "ABC123DEF456",
+					"backtrace": [],
+					"bootUUID": "XYZ789",
+					"processID": 1234,
+					"senderProgramCounter": 0,
+					"processUniqueID": "PROC123",
+					"senderImagePath": "/usr/bin/sudo",
+					"machTimestamp": 1683714330000000000
+				}
+			]`,
+			expectedError: false,
+			expectedLogs:  1,
+			commandMatcher: func(cmd string) bool {
+				return strings.Contains(cmd, "process == \"sudo\"")
+			},
+		},
+		{
+			name:          "Invalid JSON output",
+			mockOutput:    `invalid json`,
+			expectedError: false, // The module continues even if JSON parsing fails
+			expectedLogs:  0,
+			commandMatcher: func(cmd string) bool {
+				return strings.Contains(cmd, "process == \"ssh\"")
+			},
+		},
+		{
+			name:          "Empty log output",
+			mockOutput:    `[]`,
+			expectedError: false,
+			expectedLogs:  0,
+			commandMatcher: func(cmd string) bool {
+				return strings.Contains(cmd, "process == \"securityd\"")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Mock ExecuteCommandWithEnv
+			utils.ExecuteCommandWithEnv = func(command string, env []string, args ...string) (string, error) {
+				// Verify command and environment
+				assert.Equal(t, "bash", command)
+				assert.Equal(t, []string{"TZ=UTC"}, env)
+				assert.Equal(t, "-c", args[0])
+
+				// Check if this is the command we want to mock
+				if tc.commandMatcher(args[1]) {
+					return tc.mockOutput, nil
+				}
+				return "[]", nil
+			}
+
+			// Run the module
+			err := module.Run(params)
+			if tc.expectedError {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+
+			// Verify output file exists
+			outputFile := filepath.Join(tmpDir, "unifiedlogs.json")
+			assert.FileExists(t, outputFile)
+
+			// Read and verify output file content
+			content, err := os.ReadFile(outputFile)
+			assert.NoError(t, err)
+
+			// Split content into lines and count valid JSON records
+			lines := testutils.SplitLines(content)
+			validRecords := 0
+			for _, line := range lines {
+				if len(line) == 0 {
+					continue
+				}
+				var record map[string]interface{}
+				if err := json.Unmarshal(line, &record); err == nil {
+					validRecords++
+					// Verify record structure
+					assert.NotEmpty(t, record["collection_timestamp"])
+					assert.NotEmpty(t, record["event_timestamp"])
+					assert.NotEmpty(t, record["source_file"])
+
+					// Verify log-specific fields (these are flattened in the JSON output)
+					assert.NotEmpty(t, record["timestamp"])
+					assert.NotEmpty(t, record["eventmessage"])
+					assert.NotEmpty(t, record["eventtype"])
+					assert.NotEmpty(t, record["source"])
+					assert.NotEmpty(t, record["subsystem"])
+				}
+			}
+
+			assert.Equal(t, tc.expectedLogs, validRecords, "Number of valid log records should match expected count")
+		})
+	}
 }

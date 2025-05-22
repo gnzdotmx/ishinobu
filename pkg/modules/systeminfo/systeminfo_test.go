@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"howett.net/plist"
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
@@ -26,7 +27,7 @@ func TestSystemInfoModule(t *testing.T) {
 
 	// Setup test parameters
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
+		OutputDir:           ".",
 		LogsDir:             tmpDir,
 		ExportFormat:        "json",
 		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
@@ -36,7 +37,7 @@ func TestSystemInfoModule(t *testing.T) {
 	// Create module instance
 	module := &SystemInfoModule{
 		Name:        "systeminfo",
-		Description: "Collects basic system information to identify the host",
+		Description: "Collects system information",
 	}
 
 	// Test GetName
@@ -49,17 +50,72 @@ func TestSystemInfoModule(t *testing.T) {
 		assert.Contains(t, module.GetDescription(), "system information")
 	})
 
-	// Test Run method with mock output
+	// Test Run method
 	t.Run("Run", func(t *testing.T) {
-		// Create a mock output file to simulate the module's output
-		createMockSystemInfoOutput(t, params)
+		// Create mock system files
+		globalPrefsPath := filepath.Join(tmpDir, "Library", "Preferences", ".GlobalPreferences.plist")
+		systemConfigPath := filepath.Join(tmpDir, "Library", "Preferences", "SystemConfiguration", "preferences.plist")
+		systemVersionPath := filepath.Join(tmpDir, "System", "Library", "CoreServices", "SystemVersion.plist")
 
-		// Verify the output file exists
-		outputFile := filepath.Join(tmpDir, "systeminfo-"+params.CollectionTimestamp+".json")
+		// Create directories
+		err := os.MkdirAll(filepath.Dir(globalPrefsPath), 0755)
+		assert.NoError(t, err)
+		err = os.MkdirAll(filepath.Dir(systemConfigPath), 0755)
+		assert.NoError(t, err)
+		err = os.MkdirAll(filepath.Dir(systemVersionPath), 0755)
+		assert.NoError(t, err)
+
+		// Create mock plist files
+		globalPrefs := map[string]interface{}{
+			"AppleLanguages": []string{"en-US"},
+			"AppleLocale":    "en_US",
+		}
+		systemConfig := map[string]interface{}{
+			"System": map[string]interface{}{
+				"ComputerName": "TestComputer",
+				"HostName":     "testcomputer.local",
+			},
+		}
+		systemVersion := map[string]interface{}{
+			"ProductBuildVersion": "22E261",
+			"ProductName":         "macOS",
+			"ProductVersion":      "13.3.1",
+		}
+
+		// Write mock files
+		err = writePlistFile(globalPrefsPath, globalPrefs)
+		assert.NoError(t, err)
+		err = writePlistFile(systemConfigPath, systemConfig)
+		assert.NoError(t, err)
+		err = writePlistFile(systemVersionPath, systemVersion)
+		assert.NoError(t, err)
+
+		// Set mock paths
+		module.GlobalPrefsPath = globalPrefsPath
+		module.SystemConfigPath = systemConfigPath
+		module.SystemVersionPath = systemVersionPath
+
+		// Run the module
+		err = module.Run(params)
+		assert.NoError(t, err)
+
+		// Verify output file exists
+		outputFile := filepath.Join(tmpDir, "systeminfo.json")
 		assert.FileExists(t, outputFile)
 
-		// Verify the content of the output file
-		verifySystemInfoOutput(t, outputFile)
+		// Read and verify output content
+		data, err := os.ReadFile(outputFile)
+		assert.NoError(t, err)
+
+		var output map[string]interface{}
+		err = json.Unmarshal(data, &output)
+		assert.NoError(t, err)
+
+		// Verify expected fields
+		assert.Equal(t, "en-US", output["system_language"])
+		assert.Equal(t, "en_US", output["system_locale"])
+		assert.Contains(t, output, "product_build_version", "product_build_version should be present")
+		assert.Contains(t, output, "product_version", "product_version should be present")
 	})
 }
 
@@ -80,85 +136,153 @@ func TestSystemInfoModuleInitialization(t *testing.T) {
 	assert.Contains(t, module.GetDescription(), "system information")
 }
 
-// Create a mock systeminfo output file
-func createMockSystemInfoOutput(t *testing.T, params mod.ModuleParams) {
-	outputFile := filepath.Join(params.OutputDir, "systeminfo-"+params.CollectionTimestamp+".json")
+// TestRunWithMockFiles tests the Run method with mock system files
+func TestRunWithMockFiles(t *testing.T) {
+	// Create temporary directory for test outputs
+	tmpDir, err := os.MkdirTemp("", "systeminfo_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
 
-	// Mock system information record
-	sysInfo := utils.Record{
-		CollectionTimestamp: params.CollectionTimestamp,
-		EventTimestamp:      time.Now().UTC().Format(time.RFC3339),
-		SourceFile:          "System Information",
-		Data: map[string]interface{}{
-			"system_appearance":     "Dark",
-			"system_language":       "en-US",
-			"system_locale":         "en_US",
-			"keyboard_layout":       "com.apple.keylayout.US",
-			"local_hostname":        "MacBook-Pro",
-			"computer_name":         "John's MacBook Pro",
-			"hostname":              "MacBook-Pro.local",
-			"product_version":       "13.4.1",
-			"product_build_version": "22F82",
-			"model":                 "MacBookPro18,3",
-			"serial_no":             "C02ABC123DEF",
-			"system_tz":             "America/Los_Angeles",
-			"fvde_status":           "On",
-			"gatekeeper_status":     "assessments enabled",
-			"sip_status":            "System Integrity Protection status: enabled",
-			"ipaddress":             "192.168.1.100",
+	logger := testutils.NewTestLogger()
+
+	// Setup test parameters
+	params := mod.ModuleParams{
+		OutputDir:           ".",
+		LogsDir:             tmpDir,
+		ExportFormat:        "json",
+		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
+		Logger:              *logger,
+	}
+
+	// Create mock system files
+	globalPrefsPath := filepath.Join(tmpDir, "Library", "Preferences", ".GlobalPreferences.plist")
+	systemConfigPath := filepath.Join(tmpDir, "Library", "Preferences", "SystemConfiguration", "preferences.plist")
+	systemVersionPath := filepath.Join(tmpDir, "System", "Library", "CoreServices", "SystemVersion.plist")
+
+	// Create directories
+	err = os.MkdirAll(filepath.Dir(globalPrefsPath), 0755)
+	assert.NoError(t, err)
+	err = os.MkdirAll(filepath.Dir(systemConfigPath), 0755)
+	assert.NoError(t, err)
+	err = os.MkdirAll(filepath.Dir(systemVersionPath), 0755)
+	assert.NoError(t, err)
+
+	// Create mock plist files
+	globalPrefs := map[string]interface{}{
+		"AppleLanguages":      []string{"en-US"},
+		"AppleLocale":         "en_US",
+		"AppleInterfaceStyle": "Dark",
+	}
+	systemConfig := map[string]interface{}{
+		"System": map[string]interface{}{
+			"ComputerName": "TestComputer",
+			"HostName":     "testcomputer.local",
+		},
+	}
+	systemVersion := map[string]interface{}{
+		"ProductBuildVersion": "22E261",
+		"ProductName":         "macOS",
+		"ProductVersion":      "13.3.1",
+	}
+
+	// Write mock files
+	err = writePlistFile(globalPrefsPath, globalPrefs)
+	assert.NoError(t, err)
+	err = writePlistFile(systemConfigPath, systemConfig)
+	assert.NoError(t, err)
+	err = writePlistFile(systemVersionPath, systemVersion)
+	assert.NoError(t, err)
+
+	// Create module instance
+	module := &SystemInfoModule{
+		Name:              "systeminfo",
+		Description:       "Collects system information",
+		GlobalPrefsPath:   globalPrefsPath,
+		SystemConfigPath:  systemConfigPath,
+		SystemVersionPath: systemVersionPath,
+	}
+
+	// Run the module
+	err = module.Run(params)
+	assert.NoError(t, err)
+
+	// Verify output file exists
+	outputFile := filepath.Join(tmpDir, "systeminfo.json")
+	assert.FileExists(t, outputFile)
+
+	// Read and verify output content
+	data, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+
+	var output map[string]interface{}
+	err = json.Unmarshal(data, &output)
+	assert.NoError(t, err)
+
+	// Verify expected fields
+	assert.Equal(t, "en-US", output["system_language"])
+	assert.Equal(t, "en_US", output["system_locale"])
+	assert.Equal(t, "Dark", output["system_appearance"])
+	assert.Contains(t, output, "product_build_version", "product_build_version should be present")
+	assert.Contains(t, output, "product_version", "product_version should be present")
+}
+
+// TestProcessGlobalPrefs tests the processGlobalPrefs function
+func TestProcessGlobalPrefs(t *testing.T) {
+	tests := []struct {
+		name        string
+		globalPrefs map[string]interface{}
+		want        map[string]interface{}
+	}{
+		{
+			name: "Dark mode with all preferences",
+			globalPrefs: map[string]interface{}{
+				"AppleInterfaceStyle": "Dark",
+				"AppleLanguages":      []interface{}{"en-US", "ja-JP"},
+				"AppleLocale":         "en_US",
+				"AppleKeyboardLayout": "com.apple.keylayout.US",
+			},
+			want: map[string]interface{}{
+				"system_appearance": "Dark",
+				"system_language":   "en-US",
+				"system_locale":     "en_US",
+				"keyboard_layout":   "com.apple.keylayout.US",
+			},
+		},
+		{
+			name: "Light mode with missing preferences",
+			globalPrefs: map[string]interface{}{
+				"AppleLanguages": []interface{}{"fr-FR"},
+			},
+			want: map[string]interface{}{
+				"system_appearance": "Light",
+				"system_language":   "fr-FR",
+			},
+		},
+		{
+			name:        "Empty preferences",
+			globalPrefs: map[string]interface{}{},
+			want: map[string]interface{}{
+				"system_appearance": "Light",
+			},
 		},
 	}
 
-	// Write the record to the output file
-	file, err := os.Create(outputFile)
-	assert.NoError(t, err)
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(sysInfo)
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recordData := make(map[string]interface{})
+			processGlobalPrefs(tt.globalPrefs, recordData)
+			assert.Equal(t, tt.want, recordData)
+		})
+	}
 }
 
-// Verify the systeminfo output file contains expected data
-func verifySystemInfoOutput(t *testing.T, outputFile string) {
-	// Read the output file
-	content, err := os.ReadFile(outputFile)
-	assert.NoError(t, err)
-
-	// Parse the JSON content
-	var record map[string]interface{}
-	err = json.Unmarshal(content, &record)
-	assert.NoError(t, err, "Output should be valid JSON")
-
-	// Verify record structure
-	assert.NotEmpty(t, record["collection_timestamp"], "Should have collection timestamp")
-	assert.NotEmpty(t, record["event_timestamp"], "Should have event timestamp")
-	assert.Equal(t, "System Information", record["source_file"], "Source should be 'System Information'")
-
-	// Verify system information fields
-	data, ok := record["data"].(map[string]interface{})
-	assert.True(t, ok, "Record should have data field as a map")
-
-	// Check for expected system information fields
-	expectedFields := []string{
-		"system_appearance", "system_language", "system_locale", "keyboard_layout",
-		"local_hostname", "computer_name", "hostname", "product_version",
-		"product_build_version", "model", "serial_no", "system_tz",
-		"fvde_status", "gatekeeper_status", "sip_status", "ipaddress",
+// Helper function to write plist files
+func writePlistFile(path string, data map[string]interface{}) error {
+	plistData, err := plist.Marshal(data, plist.BinaryFormat)
+	if err != nil {
+		return err
 	}
-
-	for _, field := range expectedFields {
-		assert.Contains(t, data, field, "Data should contain "+field)
-	}
-
-	// Verify specific values
-	productVersion, ok := data["product_version"].(string)
-	assert.True(t, ok, "Product version should be a string")
-
-	sipStatus, ok := data["sip_status"].(string)
-	assert.True(t, ok, "SIP status should be a string")
-
-	assert.Contains(t, []string{"Light", "Dark"}, data["system_appearance"], "System appearance should be Light or Dark")
-	assert.Contains(t, productVersion, ".", "Product version should be in format x.y.z")
-	assert.Contains(t, sipStatus, "System Integrity Protection", "SIP status should mention System Integrity Protection")
+	return os.WriteFile(path, plistData, 0600)
 }
