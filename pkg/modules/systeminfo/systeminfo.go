@@ -10,7 +10,6 @@ package systeminfo
 
 import (
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -19,8 +18,11 @@ import (
 )
 
 type SystemInfoModule struct {
-	Name        string
-	Description string
+	Name              string
+	Description       string
+	GlobalPrefsPath   string
+	SystemConfigPath  string
+	SystemVersionPath string
 }
 
 func init() {
@@ -45,10 +47,19 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 		return err
 	}
 
-	// Read system preferences
-	globalPrefsPath := "/Library/Preferences/.GlobalPreferences.plist"
-	systemConfigPath := "/Library/Preferences/SystemConfiguration/preferences.plist"
-	systemVersionPath := "/System/Library/CoreServices/SystemVersion.plist"
+	// Use injected paths if set, otherwise default
+	globalPrefsPath := m.GlobalPrefsPath
+	if globalPrefsPath == "" {
+		globalPrefsPath = "/Library/Preferences/.GlobalPreferences.plist"
+	}
+	systemConfigPath := m.SystemConfigPath
+	if systemConfigPath == "" {
+		systemConfigPath = "/Library/Preferences/SystemConfiguration/preferences.plist"
+	}
+	systemVersionPath := m.SystemVersionPath
+	if systemVersionPath == "" {
+		systemVersionPath = "/System/Library/CoreServices/SystemVersion.plist"
+	}
 
 	// Collect system information
 	recordData := make(map[string]interface{})
@@ -89,9 +100,6 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 		params.Logger.Debug("Error reading system version: %v", err)
 	}
 
-	// Collect system information
-	recordData = make(map[string]interface{})
-
 	// Get computer name and hostname
 	if systemConfig != nil {
 		if computerName, ok := utils.GetNestedValue(systemConfig, "System", "Network", "HostNames", "LocalHostName").(string); ok {
@@ -112,7 +120,7 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 	}
 
 	// Get hardware information using system_profiler
-	if hwInfo, err := exec.Command("system_profiler", "SPHardwareDataType", "-json").Output(); err == nil {
+	if hwInfo, err := utils.ExecCommand("system_profiler", "SPHardwareDataType", "-json"); err == nil {
 		hwData, err := utils.ParseBiPList(string(hwInfo))
 		if err == nil {
 			if items, ok := hwData["SPHardwareDataType"].([]interface{}); ok && len(items) > 0 {
@@ -125,12 +133,12 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 	}
 
 	// Get timezone
-	if tz, err := exec.Command("systemsetup", "-gettimezone").Output(); err == nil {
+	if tz, err := utils.ExecCommand("systemsetup", "-gettimezone"); err == nil {
 		recordData["system_tz"] = strings.TrimPrefix(strings.TrimSpace(string(tz)), "Time Zone: ")
 	}
 
 	// Get FileVault status
-	if fdeStatus, err := exec.Command("fdesetup", "status").Output(); err == nil {
+	if fdeStatus, err := utils.ExecCommand("fdesetup", "status"); err == nil {
 		if strings.Contains(string(fdeStatus), "On") {
 			recordData["fvde_status"] = "On"
 		} else {
@@ -139,17 +147,17 @@ func (m *SystemInfoModule) Run(params mod.ModuleParams) error {
 	}
 
 	// Get Gatekeeper status
-	if gkStatus, err := exec.Command("spctl", "--status").Output(); err == nil {
+	if gkStatus, err := utils.ExecCommand("spctl", "--status"); err == nil {
 		recordData["gatekeeper_status"] = strings.TrimSpace(string(gkStatus))
 	}
 
 	// Get SIP status
-	if sipStatus, err := exec.Command("csrutil", "status").Output(); err == nil {
+	if sipStatus, err := utils.ExecCommand("csrutil", "status"); err == nil {
 		recordData["sip_status"] = strings.TrimSpace(string(sipStatus))
 	}
 
 	// Get IP address
-	if ipAddr, err := exec.Command("ipconfig", "getifaddr", "en0").Output(); err == nil {
+	if ipAddr, err := utils.ExecCommand("ipconfig", "getifaddr", "en0"); err == nil {
 		recordData["ipaddress"] = strings.TrimSpace(string(ipAddr))
 	}
 

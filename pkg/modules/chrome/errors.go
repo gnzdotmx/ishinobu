@@ -3,5 +3,9 @@ package chrome
 import "errors"
 
 var (
-	errManifestNotFound = errors.New("manifest not found for extension")
+	errNoProfileData     = errors.New("no profile data found")
+	errNoContentSettings = errors.New("no content settings data found")
+	errNoExceptions      = errors.New("no exceptions data found")
+	errNoPopups          = errors.New("no popups data found")
+	errNoExtensionName   = errors.New("no name found for extension")
 )

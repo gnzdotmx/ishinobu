@@ -45,26 +45,6 @@ func (m *SafariModule) Run(params mod.ModuleParams) error {
 		return err
 	}
 
-	for _, location := range locations {
-		err = visitSafariHistory(location, m.GetName(), params)
-		if err != nil {
-			params.Logger.Debug("Error when collecting Safari history: %v", err)
-		}
-
-		err = downloadsSafariHistory(location, m.GetName(), params)
-		if err != nil {
-			params.Logger.Debug("Error when collecting Safari downloads: %v", err)
-		}
-
-		err = getSafariExtensions(location, m.GetName(), params)
-		if err != nil {
-			params.Logger.Debug("Error when collecting Safari extensions: %v", err)
-		}
-	}
-	return nil
-}
-
-func visitSafariHistory(location string, moduleName string, params mod.ModuleParams) error {
 	// Create temporary directory
 	ishinobuDir := "/tmp/ishinobu"
 	if err := os.MkdirAll(ishinobuDir, os.ModePerm); err != nil {
@@ -72,16 +52,55 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 		return err
 	}
 
-	userProfile := strings.Split(location, "/")[2]
-	outputFileName := utils.GetOutputFileName(moduleName+"-visit-"+userProfile, params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
+	for _, location := range locations {
+		userProfile := strings.Split(location, "/")[2]
+		outputFileNameVisit := utils.GetOutputFileName(m.GetName()+"-visit-"+userProfile, params.ExportFormat, params.OutputDir)
+		writerVisit, err := utils.NewDataWriter(params.LogsDir, outputFileNameVisit, params.ExportFormat)
+		if err != nil {
+			return err
+		}
+		err = visitSafariHistory(location, ishinobuDir, writerVisit, params)
+		if err != nil {
+			params.Logger.Debug("Error when collecting Safari history: %v", err)
+		}
+
+		outputFileNameDownloads := utils.GetOutputFileName(m.GetName()+"-downloads-"+userProfile, params.ExportFormat, params.OutputDir)
+		writerDownloads, err := utils.NewDataWriter(params.LogsDir, outputFileNameDownloads, params.ExportFormat)
+		if err != nil {
+			return err
+		}
+		err = downloadsSafariHistory(location, writerDownloads, params)
+		if err != nil {
+			params.Logger.Debug("Error when collecting Safari downloads: %v", err)
+		}
+
+		outputFileNameExtensions := utils.GetOutputFileName(m.GetName()+"-extensions-"+userProfile, params.ExportFormat, params.OutputDir)
+		writerExtensions, err := utils.NewDataWriter(params.LogsDir, outputFileNameExtensions, params.ExportFormat)
+		if err != nil {
+			return err
+		}
+		err = getSafariExtensions(location, writerExtensions, params)
+		if err != nil {
+			params.Logger.Debug("Error when collecting Safari extensions: %v", err)
+		}
 	}
 
+	// Remove temporary folder
+	err = os.RemoveAll(ishinobuDir)
+	if err != nil {
+		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
+	}
+
+	return nil
+}
+
+func visitSafariHistory(location string, ishinobuDir string, writer utils.DataWriter, params mod.ModuleParams) error {
+
+	userProfile := strings.Split(location, "/")[2]
+
 	historyDB := filepath.Join(location, "History.db")
-	dst := "/tmp/ishinobu/safari_history"
-	err = utils.CopyFile(historyDB, dst)
+	dst := filepath.Join(ishinobuDir, "safari_history")
+	err := utils.CopyFile(historyDB, dst)
 	if err != nil {
 		return fmt.Errorf("error copying file: %w", err)
 	}
@@ -178,22 +197,11 @@ func visitSafariHistory(location string, moduleName string, params mod.ModulePar
 		}
 	}
 
-	// Remove temporary folder
-	err = os.RemoveAll(ishinobuDir)
-	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu: %w", err)
-	}
 	return nil
 }
 
-func downloadsSafariHistory(location string, moduleName string, params mod.ModuleParams) error {
+func downloadsSafariHistory(location string, writer utils.DataWriter, params mod.ModuleParams) error {
 	userProfile := strings.Split(location, "/")[2]
-	outputFileName := utils.GetOutputFileName(moduleName+"-downloads-"+userProfile, params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
-
 	// Read Downloads.plist
 	downloadsFile := filepath.Join(location, "Downloads.plist")
 	data, err := os.ReadFile(downloadsFile)
@@ -246,13 +254,8 @@ func downloadsSafariHistory(location string, moduleName string, params mod.Modul
 	return nil
 }
 
-func getSafariExtensions(location string, moduleName string, params mod.ModuleParams) error {
+func getSafariExtensions(location string, writer utils.DataWriter, params mod.ModuleParams) error {
 	userProfile := strings.Split(location, "/")[2]
-	outputFileName := utils.GetOutputFileName(moduleName+"-extensions-"+userProfile, params.ExportFormat, params.OutputDir)
-	writer, err := utils.NewDataWriter(params.LogsDir, outputFileName, params.ExportFormat)
-	if err != nil {
-		return err
-	}
 
 	// Read Extensions.plist
 	extensionsDir := filepath.Join(location, "Extensions")

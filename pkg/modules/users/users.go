@@ -45,7 +45,8 @@ func (m *UsersModule) Run(params mod.ModuleParams) error {
 	}
 
 	// Get deleted users from preferences
-	deletedUsers, err := getDeletedUsers()
+	plistPath := "/Library/Preferences/com.apple.preferences.accounts.plist"
+	deletedUsers, err := getDeletedUsers(plistPath)
 	if err != nil {
 		params.Logger.Debug("Error getting deleted users: %v", err)
 	}
@@ -74,13 +75,15 @@ func (m *UsersModule) Run(params mod.ModuleParams) error {
 	}
 
 	// Get admin users
-	adminUsers, err := getAdminUsers()
+	adminPlistPath := "/private/var/db/dslocal/nodes/Default/groups/admin.plist"
+	adminUsers, err := getAdminUsers(adminPlistPath)
 	if err != nil {
 		params.Logger.Debug("Error getting admin users: %v", err)
 	}
 
 	// Get last logged in user
-	lastUser, err := getLastLoggedInUser()
+	loginPlistPath := "/Library/Preferences/com.apple.loginwindow.plist"
+	lastUser, err := getLastLoggedInUser(loginPlistPath)
 	if err != nil {
 		params.Logger.Debug("Error getting last logged in user: %v", err)
 	}
@@ -105,7 +108,9 @@ func (m *UsersModule) Run(params mod.ModuleParams) error {
 		}
 
 		// Get user info from dscl
-		userInfo, err := getUserInfo(userName)
+		// This would normally use dscl, but for forensics we'll read from the user plist
+		userPlistPath := fmt.Sprintf("/private/var/db/dslocal/nodes/Default/users/%s.plist", userName)
+		userInfo, err := getUserInfo(userPlistPath)
 		if err != nil {
 			params.Logger.Debug("Error getting user info for %s: %v", userName, err)
 			continue
@@ -154,8 +159,7 @@ type DeletedUser struct {
 	RealName    string
 }
 
-func getDeletedUsers() ([]DeletedUser, error) {
-	plistPath := "/Library/Preferences/com.apple.preferences.accounts.plist"
+func getDeletedUsers(plistPath string) ([]DeletedUser, error) {
 	data, err := os.ReadFile(plistPath)
 	if err != nil {
 		return nil, err
@@ -190,8 +194,7 @@ func getDeletedUsers() ([]DeletedUser, error) {
 	return deletedUsers, nil
 }
 
-func getAdminUsers() ([]string, error) {
-	adminPlistPath := "/private/var/db/dslocal/nodes/Default/groups/admin.plist"
+func getAdminUsers(adminPlistPath string) ([]string, error) {
 	data, err := os.ReadFile(adminPlistPath)
 	if err != nil {
 		return nil, err
@@ -213,8 +216,7 @@ func getAdminUsers() ([]string, error) {
 	return nil, errNoAdminUsers
 }
 
-func getLastLoggedInUser() (string, error) {
-	loginPlistPath := "/Library/Preferences/com.apple.loginwindow.plist"
+func getLastLoggedInUser(loginPlistPath string) (string, error) {
 	data, err := os.ReadFile(loginPlistPath)
 	if err != nil {
 		return "", err
@@ -237,9 +239,7 @@ type UserInfo struct {
 	RealName string
 }
 
-func getUserInfo(username string) (*UserInfo, error) {
-	// This would normally use dscl, but for forensics we'll read from the user plist
-	userPlistPath := fmt.Sprintf("/private/var/db/dslocal/nodes/Default/users/%s.plist", username)
+func getUserInfo(userPlistPath string) (*UserInfo, error) {
 	data, err := os.ReadFile(userPlistPath)
 	if err != nil {
 		return nil, err

@@ -44,20 +44,6 @@ func (m *TerminalModule) GetDescription() string {
 }
 
 func (m *TerminalModule) Run(params mod.ModuleParams) error {
-	// Run Terminal.savedState collection
-	if err := m.collectTerminalState(params); err != nil {
-		params.Logger.Debug("Error collecting Terminal.savedState: %v", err)
-	}
-
-	// Run terminal history collection
-	if err := m.collectTerminalHistory(params); err != nil {
-		params.Logger.Debug("Error collecting terminal histories: %v", err)
-	}
-
-	return nil
-}
-
-func (m *TerminalModule) collectTerminalState(params mod.ModuleParams) error {
 	locations, err := filepath.Glob("/Users/*/Library/Saved Application State/com.apple.Terminal.savedState")
 	if err != nil {
 		params.Logger.Debug("Error listing Terminal locations: %v", err)
@@ -73,10 +59,33 @@ func (m *TerminalModule) collectTerminalState(params mod.ModuleParams) error {
 
 	locations = append(locations, varLocations...)
 
-	if len(locations) == 0 {
-		params.Logger.Info("No Terminal.savedState files were found")
-		return nil
+	if len(locations) > 0 {
+		// Run Terminal.savedState collection
+		if err := m.collectTerminalState(locations, params); err != nil {
+			params.Logger.Debug("Error collecting Terminal.savedState: %v", err)
+		}
 	}
+
+	paths := []string{"/Users/*/.*_history", "/Users/*/.bash_sessions/*",
+		"/private/var/*/.*_history", "/private/var/*/.bash_sessions/*"}
+	var expandedPaths []string
+	for _, path := range paths {
+		expandedPath, err := filepath.Glob(path)
+		if err != nil {
+			continue
+		}
+		expandedPaths = append(expandedPaths, expandedPath...)
+	}
+
+	// Run terminal history collection
+	if err := m.collectTerminalHistory(expandedPaths, params); err != nil {
+		params.Logger.Debug("Error collecting terminal histories: %v", err)
+	}
+
+	return nil
+}
+
+func (m *TerminalModule) collectTerminalState(locations []string, params mod.ModuleParams) error {
 
 	// Create a map to store writers for each user
 	writers := make(map[string]utils.DataWriter)
@@ -104,18 +113,7 @@ func (m *TerminalModule) collectTerminalState(params mod.ModuleParams) error {
 	return nil
 }
 
-func (m *TerminalModule) collectTerminalHistory(params mod.ModuleParams) error {
-	paths := []string{"/Users/*/.*_history", "/Users/*/.bash_sessions/*",
-		"/private/var/*/.*_history", "/private/var/*/.bash_sessions/*"}
-	var expandedPaths []string
-	for _, path := range paths {
-		expandedPath, err := filepath.Glob(path)
-		if err != nil {
-			continue
-		}
-		expandedPaths = append(expandedPaths, expandedPath...)
-	}
-
+func (m *TerminalModule) collectTerminalHistory(expandedPaths []string, params mod.ModuleParams) error {
 	// Create a map to store writers for each user
 	writers := make(map[string]utils.DataWriter)
 

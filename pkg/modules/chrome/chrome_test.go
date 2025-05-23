@@ -270,7 +270,7 @@ func TestDownloadsChromeHistoryError(t *testing.T) {
 
 	// Create invalid History file (not an SQLite file)
 	historyPath := filepath.Join(profileDir, "History")
-	err = os.WriteFile(historyPath, []byte("not a valid sqlite database"), 0644)
+	err = os.WriteFile(historyPath, []byte("not a valid sqlite database"), 0600)
 	require.NoError(t, err)
 
 	// Call the function under test - should handle the error gracefully
@@ -294,7 +294,7 @@ func TestChromeProfiles(t *testing.T) {
 	localStateContent := `{"profile":{"info_cache":{"Default":{"name":"Person 1","user_name":"test@example.com","gaia_name":"Test User","gaia_given_name":"Test","gaia_id":"12345","is_consented_primary_account":true,"is_ephemeral":false,"is_using_default_name":false,"avatar_icon":"avatar.png","background_apps":true,"gaia_picture_file_name":"picture.png","metrics_bucket_index":1},"Profile 1":{"name":"Person 2","user_name":"other@example.com","gaia_name":"Other User","gaia_given_name":"Other","gaia_id":"67890","is_consented_primary_account":false,"is_ephemeral":false,"is_using_default_name":false,"avatar_icon":"avatar2.png","background_apps":false,"gaia_picture_file_name":"picture2.png","metrics_bucket_index":2}}}}`
 
 	localStatePath := filepath.Join(chromeDir, "Local State")
-	err = os.WriteFile(localStatePath, []byte(localStateContent), 0644)
+	err = os.WriteFile(localStatePath, []byte(localStateContent), 0600)
 	require.NoError(t, err)
 
 	// Set up test parameters
@@ -358,7 +358,7 @@ func TestChromeProfilesError(t *testing.T) {
 	// Create invalid Local State file
 	invalidContent := `{not valid json`
 	localStatePath := filepath.Join(chromeDir, "Local State")
-	err = os.WriteFile(localStatePath, []byte(invalidContent), 0644)
+	err = os.WriteFile(localStatePath, []byte(invalidContent), 0600)
 	require.NoError(t, err)
 
 	// Set up test parameters
@@ -409,7 +409,7 @@ func TestGetChromeExtensions(t *testing.T) {
 	}`
 
 	manifestPath := filepath.Join(extensionVersionDir, "manifest.json")
-	err = os.WriteFile(manifestPath, []byte(manifestContent), 0644)
+	err = os.WriteFile(manifestPath, []byte(manifestContent), 0600)
 	require.NoError(t, err)
 
 	// Set up test parameters
@@ -513,7 +513,7 @@ func TestGetChromeExtensionsError(t *testing.T) {
 	// Write invalid JSON to manifest.json
 	invalidManifestContent := `{ this is not valid JSON }`
 	manifestPath := filepath.Join(extensionVersionDir, "manifest.json")
-	err = os.WriteFile(manifestPath, []byte(invalidManifestContent), 0644)
+	err = os.WriteFile(manifestPath, []byte(invalidManifestContent), 0600)
 	require.NoError(t, err)
 
 	// Should handle invalid JSON gracefully and not return an error
@@ -562,7 +562,7 @@ func TestGetPopupChromeSettings(t *testing.T) {
 	}`
 
 	preferencesPath := filepath.Join(profileDir, "Preferences")
-	err = os.WriteFile(preferencesPath, []byte(preferencesContent), 0644)
+	err = os.WriteFile(preferencesPath, []byte(preferencesContent), 0600)
 	require.NoError(t, err)
 
 	// Set up test parameters
@@ -667,7 +667,7 @@ func TestGetPopupChromeSettingsError(t *testing.T) {
 	// Test case 2: Invalid JSON in Preferences file
 	invalidContent := `{ this is not valid JSON }`
 	preferencesPath := filepath.Join(profileDir, "Preferences")
-	err = os.WriteFile(preferencesPath, []byte(invalidContent), 0644)
+	err = os.WriteFile(preferencesPath, []byte(invalidContent), 0600)
 	require.NoError(t, err)
 
 	err = getPopupChromeSettings(chromeDir, profile, "chrome", params)
@@ -683,7 +683,7 @@ func TestGetPopupChromeSettingsError(t *testing.T) {
 			}
 		}
 	}`
-	err = os.WriteFile(preferencesPath, []byte(validButMissingPopupsContent), 0644)
+	err = os.WriteFile(preferencesPath, []byte(validButMissingPopupsContent), 0600)
 	require.NoError(t, err)
 
 	err = getPopupChromeSettings(chromeDir, profile, "chrome", params)
@@ -695,7 +695,7 @@ func TestGetPopupChromeSettingsError(t *testing.T) {
 			"content_settings": "not an object"
 		}
 	}`
-	err = os.WriteFile(preferencesPath, []byte(unexpectedStructureContent), 0644)
+	err = os.WriteFile(preferencesPath, []byte(unexpectedStructureContent), 0600)
 	require.NoError(t, err)
 
 	err = getPopupChromeSettings(chromeDir, profile, "chrome", params)
@@ -711,7 +711,7 @@ func TestGetPopupChromeSettingsError(t *testing.T) {
 			}
 		}
 	}`
-	err = os.WriteFile(preferencesPath, []byte(emptyPopupsContent), 0644)
+	err = os.WriteFile(preferencesPath, []byte(emptyPopupsContent), 0600)
 	require.NoError(t, err)
 
 	err = getPopupChromeSettings(chromeDir, profile, "chrome", params)
@@ -753,7 +753,7 @@ func TestProcessServerInterface(t *testing.T) {
 	// Create manifest.json
 	manifestContent := `{"name": "Test Extension"}`
 	manifestPath := filepath.Join(extensionVersionDir, "manifest.json")
-	err = os.WriteFile(manifestPath, []byte(manifestContent), 0644)
+	err = os.WriteFile(manifestPath, []byte(manifestContent), 0600)
 	require.NoError(t, err)
 
 	// Create test server interface data
@@ -865,7 +865,7 @@ func TestGetExtensionName(t *testing.T) {
 	// Create manifest.json with a name
 	manifestContent := `{"name": "Test Extension"}`
 	manifestPath := filepath.Join(extensionVersionDir, "manifest.json")
-	err = os.WriteFile(manifestPath, []byte(manifestContent), 0644)
+	err = os.WriteFile(manifestPath, []byte(manifestContent), 0600)
 	require.NoError(t, err)
 
 	// Test with valid extension ID
@@ -886,7 +886,7 @@ func TestGetExtensionName(t *testing.T) {
 
 	invalidManifestContent := `{not valid json`
 	invalidManifestPath := filepath.Join(invalidExtensionDir, "manifest.json")
-	err = os.WriteFile(invalidManifestPath, []byte(invalidManifestContent), 0644)
+	err = os.WriteFile(invalidManifestPath, []byte(invalidManifestContent), 0600)
 	require.NoError(t, err)
 
 	name, err = getExtensionName(chromeDir, profileDir, invalidExtensionID)
@@ -901,7 +901,7 @@ func TestGetExtensionName(t *testing.T) {
 
 	noNameManifestContent := `{"version": "1.0.0"}`
 	noNameManifestPath := filepath.Join(noNameExtensionDir, "manifest.json")
-	err = os.WriteFile(noNameManifestPath, []byte(noNameManifestContent), 0644)
+	err = os.WriteFile(noNameManifestPath, []byte(noNameManifestContent), 0600)
 	require.NoError(t, err)
 
 	name, err = getExtensionName(chromeDir, profileDir, noNameExtensionID)
@@ -929,13 +929,13 @@ func TestRunChromeModule(t *testing.T) {
 
 	// Create minimal Local State file
 	localStateContent := `{"profile":{"info_cache":{"Default":{"name":"Person 1"}}}}`
-	err = os.WriteFile(filepath.Join(userDir, "Local State"), []byte(localStateContent), 0644)
+	err = os.WriteFile(filepath.Join(userDir, "Local State"), []byte(localStateContent), 0600)
 	require.NoError(t, err)
 
 	// Create mock manifest.json
 	manifestContent := `{"name": "Test Extension"}`
 	manifestPath := filepath.Join(extensionVersionDir, "manifest.json")
-	err = os.WriteFile(manifestPath, []byte(manifestContent), 0644)
+	err = os.WriteFile(manifestPath, []byte(manifestContent), 0600)
 	require.NoError(t, err)
 
 	// Create minimal Preferences file
@@ -954,7 +954,7 @@ func TestRunChromeModule(t *testing.T) {
 		}
 	}`
 	preferencesPath := filepath.Join(profileDir, "Preferences")
-	err = os.WriteFile(preferencesPath, []byte(preferencesContent), 0644)
+	err = os.WriteFile(preferencesPath, []byte(preferencesContent), 0600)
 	require.NoError(t, err)
 
 	// Set up an SQLite file for History tests - minimal required tables
@@ -986,7 +986,7 @@ func TestRunChromeModule(t *testing.T) {
 		}
 	}`
 	networkStatePath := filepath.Join(networkDir, "Network Persistent State")
-	err = os.WriteFile(networkStatePath, []byte(networkStateContent), 0644)
+	err = os.WriteFile(networkStatePath, []byte(networkStateContent), 0600)
 	require.NoError(t, err)
 
 	// Create the module
@@ -1026,7 +1026,7 @@ func TestGetExtensionDomains(t *testing.T) {
 	// Create manifest.json for extension name lookup
 	manifestContent := `{"name": "Test Extension"}`
 	manifestPath := filepath.Join(extensionVersionDir, "manifest.json")
-	err = os.WriteFile(manifestPath, []byte(manifestContent), 0644)
+	err = os.WriteFile(manifestPath, []byte(manifestContent), 0600)
 	require.NoError(t, err)
 
 	// Create mock Network State file
@@ -1053,7 +1053,7 @@ func TestGetExtensionDomains(t *testing.T) {
 	}`
 
 	networkStatePath := filepath.Join(networkDir, "Network Persistent State")
-	err = os.WriteFile(networkStatePath, []byte(networkStateContent), 0644)
+	err = os.WriteFile(networkStatePath, []byte(networkStateContent), 0600)
 	require.NoError(t, err)
 
 	// Set up test parameters
@@ -1146,7 +1146,7 @@ func TestGetExtensionDomainsError(t *testing.T) {
 	// Test case 1: Invalid JSON in Network State file
 	invalidNetworkStateContent := `{ this is not valid JSON }`
 	networkStatePath := filepath.Join(networkDir, "Network Persistent State")
-	err = os.WriteFile(networkStatePath, []byte(invalidNetworkStateContent), 0644)
+	err = os.WriteFile(networkStatePath, []byte(invalidNetworkStateContent), 0600)
 	require.NoError(t, err)
 
 	// Should handle invalid JSON gracefully
@@ -1155,7 +1155,7 @@ func TestGetExtensionDomainsError(t *testing.T) {
 
 	// Test case 2: Valid JSON but missing required structure
 	incompleteNetworkStateContent := `{"not_net": {"something": true}}`
-	err = os.WriteFile(networkStatePath, []byte(incompleteNetworkStateContent), 0644)
+	err = os.WriteFile(networkStatePath, []byte(incompleteNetworkStateContent), 0600)
 	require.NoError(t, err)
 
 	// Should handle missing structure gracefully
@@ -1179,7 +1179,7 @@ func TestGetExtensionDomainsError(t *testing.T) {
 			}
 		}
 	}`
-	err = os.WriteFile(networkStatePath, []byte(validNetworkStateContent), 0644)
+	err = os.WriteFile(networkStatePath, []byte(validNetworkStateContent), 0600)
 	require.NoError(t, err)
 
 	// Should return error when cannot create writer
@@ -1247,7 +1247,7 @@ func TestGetExtensionDomainsBrokenLinks(t *testing.T) {
 	}`
 
 	networkStatePath := filepath.Join(networkDir, "Network Persistent State")
-	err = os.WriteFile(networkStatePath, []byte(networkStateContent), 0644)
+	err = os.WriteFile(networkStatePath, []byte(networkStateContent), 0600)
 	require.NoError(t, err)
 
 	// Call the function under test

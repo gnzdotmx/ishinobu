@@ -1,361 +1,323 @@
 package netcfgplists
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
+	"github.com/stretchr/testify/require"
+	"howett.net/plist"
 )
 
-func TestNetworkConfigPlistsModule(t *testing.T) {
-	// Create temporary directory for test outputs
+func TestParseAirportPreferences(t *testing.T) {
+	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "netcfgplists_test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
+	// Create test plist data
+	airportPlist := map[string]interface{}{
+		"KnownNetworks": map[string]interface{}{
+			"NetworkKey1": map[string]interface{}{
+				"SSIDString":         "TestWiFi",
+				"LastConnected":      "2023-01-01 12:00:00",
+				"SecurityType":       "WPA2",
+				"PersonalHotspot":    true,
+				"AddedAt":            "2022-12-01 10:00:00",
+				"RoamingProfileType": "None",
+				"AutoLogin":          true,
+				"CaptiveBypass":      false,
+				"Disabled":           false,
+			},
+			"NetworkKey2": map[string]interface{}{
+				"SSIDString":         "HomeWiFi",
+				"LastConnected":      "2023-02-01 09:00:00",
+				"SecurityType":       "WPA3",
+				"PersonalHotspot":    false,
+				"AddedAt":            "2022-11-15 15:30:00",
+				"RoamingProfileType": "Automatic",
+				"AutoLogin":          false,
+				"CaptiveBypass":      true,
+				"Disabled":           true,
+			},
+		},
+	}
+
+	// Create temporary plist file
+	airportPath := filepath.Join(tmpDir, "airport.plist")
+	plistData, err := plist.Marshal(airportPlist, plist.XMLFormat)
+	require.NoError(t, err)
+	err = os.WriteFile(airportPath, plistData, 0600)
+	require.NoError(t, err)
+
+	// Create output files for the records
+	outputDir := filepath.Join(tmpDir, "output")
+	err = os.MkdirAll(outputDir, 0755)
+	require.NoError(t, err)
+
+	// Get test records
+	collectionTime := "2023-03-01T10:00:00Z"
+
+	// Create the expected records
+	record1 := utils.Record{
+		CollectionTimestamp: collectionTime,
+		EventTimestamp:      collectionTime,
+		SourceFile:          airportPath,
+		Data: map[string]interface{}{
+			"src_name":        "airport",
+			"type":            "Airport",
+			"name":            "TestWiFi",
+			"last_connected":  "2023-01-01 12:00:00",
+			"security":        "WPA2",
+			"hotspot":         true,
+			"added_at":        "2022-12-01 10:00:00",
+			"roaming_profile": "None",
+			"auto_login":      true,
+			"captive_bypass":  false,
+			"disabled":        false,
+		},
+	}
+
+	record2 := utils.Record{
+		CollectionTimestamp: collectionTime,
+		EventTimestamp:      collectionTime,
+		SourceFile:          airportPath,
+		Data: map[string]interface{}{
+			"src_name":        "airport",
+			"type":            "Airport",
+			"name":            "HomeWiFi",
+			"last_connected":  "2023-02-01 09:00:00",
+			"security":        "WPA3",
+			"hotspot":         false,
+			"added_at":        "2022-11-15 15:30:00",
+			"roaming_profile": "Automatic",
+			"auto_login":      false,
+			"captive_bypass":  true,
+			"disabled":        true,
+		},
+	}
+
+	// Create JSON files for these records
+	record1File := filepath.Join(outputDir, "record1.json")
+	record2File := filepath.Join(outputDir, "record2.json")
+
+	testutils.WriteTestRecord(t, record1File, record1)
+	testutils.WriteTestRecord(t, record2File, record2)
+
+	// Create test module params and run the function directly
 	logger := testutils.NewTestLogger()
-
-	// Setup test parameters
 	params := mod.ModuleParams{
-		OutputDir:           tmpDir,
-		LogsDir:             tmpDir,
-		ExportFormat:        "json",
-		CollectionTimestamp: time.Now().Format(utils.TimeFormat),
 		Logger:              *logger,
+		OutputDir:           "./",
+		LogsDir:             tmpDir,
+		CollectionTimestamp: collectionTime,
+		ExportFormat:        "json",
 	}
 
-	// Create module instance
-	module := &NetworkConfigPlistsModule{
-		Name:        "netcfgplists",
-		Description: "Collects information about network configurations from plist files",
-	}
+	// This test isn't meant to fully execute the function since we're not mocking DataWriter
+	// Just verify it doesn't panic
+	err = parseAirportPreferences(airportPath, "netcfgplists", params)
+	require.NoError(t, err)
 
-	// Test GetName
-	t.Run("GetName", func(t *testing.T) {
-		assert.Equal(t, "netcfgplists", module.GetName())
-	})
+	// Read the output file netcfgplists-airport.json
+	outputFile := filepath.Join(tmpDir, "netcfgplists-airport.json")
+	require.FileExists(t, outputFile)
 
-	// Test GetDescription
-	t.Run("GetDescription", func(t *testing.T) {
-		assert.Contains(t, module.GetDescription(), "network configurations")
-	})
+	// Read line by line since the file contains separate JSON objects
+	fileContent, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
 
-	// Test Run method with mock outputs
-	t.Run("Run", func(t *testing.T) {
-		// Create mock output files directly
-		createMockAirportPreferencesFile(t, params)
-		createMockNetworkInterfacesFile(t, params)
+	var records []map[string]interface{}
+	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
 
-		// Verify airport preferences file exists
-		airportFile := filepath.Join(tmpDir, "netcfgplists-airport-"+params.CollectionTimestamp+".json")
-		assert.FileExists(t, airportFile)
-
-		// Verify network interfaces file exists
-		interfacesFile := filepath.Join(tmpDir, "netcfgplists-interfaces-"+params.CollectionTimestamp+".json")
-		assert.FileExists(t, interfacesFile)
-
-		// Verify content of the files
-		verifyAirportPreferencesOutput(t, airportFile)
-		verifyNetworkInterfacesOutput(t, interfacesFile)
-	})
-}
-
-// Test that the module initializes properly
-func TestNetworkConfigPlistsModuleInitialization(t *testing.T) {
-	// Create a new instance with proper initialization
-	module := &NetworkConfigPlistsModule{
-		Name:        "netcfgplists",
-		Description: "Collects information about network configurations from plist files",
-	}
-
-	// Verify module is properly instantiated with expected values
-	assert.Equal(t, "netcfgplists", module.Name, "Module name should be initialized")
-	assert.Contains(t, module.Description, "network configurations", "Module description should be initialized")
-
-	// Test the module's methods
-	assert.Equal(t, "netcfgplists", module.GetName())
-	assert.Contains(t, module.GetDescription(), "network configurations")
-}
-
-// Create a mock airport preferences file
-func createMockAirportPreferencesFile(t *testing.T, params mod.ModuleParams) {
-	outputFile := filepath.Join(params.OutputDir, "netcfgplists-airport-"+params.CollectionTimestamp+".json")
-
-	// Create mock WiFi network records
-	wifiNetworks := []utils.Record{
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist",
-			Data: map[string]interface{}{
-				"src_name":        "airport",
-				"type":            "Airport",
-				"name":            "HomeWiFi",
-				"last_connected":  "2023-06-15T08:30:45Z",
-				"security":        "WPA2",
-				"hotspot":         false,
-				"added_at":        "2023-01-10T14:22:33Z",
-				"roaming_profile": "None",
-				"auto_login":      true,
-				"captive_bypass":  false,
-				"disabled":        false,
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist",
-			Data: map[string]interface{}{
-				"src_name":        "airport",
-				"type":            "Airport",
-				"name":            "CoffeeShopWiFi",
-				"last_connected":  "2023-06-12T15:40:20Z",
-				"security":        "WPA2",
-				"hotspot":         false,
-				"added_at":        "2023-03-22T09:15:10Z",
-				"roaming_profile": "None",
-				"auto_login":      false,
-				"captive_bypass":  true,
-				"disabled":        false,
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist",
-			Data: map[string]interface{}{
-				"src_name":        "airport",
-				"type":            "Airport",
-				"name":            "iPhone Hotspot",
-				"last_connected":  "2023-06-14T12:10:05Z",
-				"security":        "WPA2",
-				"hotspot":         true,
-				"added_at":        "2023-05-05T18:30:45Z",
-				"roaming_profile": "None",
-				"auto_login":      true,
-				"captive_bypass":  false,
-				"disabled":        false,
-			},
-		},
-	}
-
-	// Write the records to the output file
-	file, err := os.Create(outputFile)
-	assert.NoError(t, err)
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	for _, record := range wifiNetworks {
-		err := encoder.Encode(record)
-		assert.NoError(t, err)
-	}
-}
-
-// Create a mock network interfaces file
-func createMockNetworkInterfacesFile(t *testing.T, params mod.ModuleParams) {
-	outputFile := filepath.Join(params.OutputDir, "netcfgplists-interfaces-"+params.CollectionTimestamp+".json")
-
-	// Create mock network interface records
-	interfaces := []utils.Record{
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Library/Preferences/SystemConfiguration/NetworkInterfaces.plist",
-			Data: map[string]interface{}{
-				"src_name":       "network_interfaces",
-				"type":           "en0",
-				"name":           "Wi-Fi",
-				"active":         true,
-				"built_in":       true,
-				"mac_address":    "aa:bb:cc:dd:ee:ff",
-				"product":        "AirPort Extreme",
-				"vendor":         "Apple",
-				"model":          "MacBookPro",
-				"interface_type": "IEEE80211",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Library/Preferences/SystemConfiguration/NetworkInterfaces.plist",
-			Data: map[string]interface{}{
-				"src_name":       "network_interfaces",
-				"type":           "en1",
-				"name":           "Thunderbolt Ethernet",
-				"active":         false,
-				"built_in":       true,
-				"mac_address":    "aa:bb:cc:11:22:33",
-				"product":        "Ethernet Controller",
-				"vendor":         "Apple",
-				"model":          "MacBookPro",
-				"interface_type": "Ethernet",
-			},
-		},
-		{
-			CollectionTimestamp: params.CollectionTimestamp,
-			EventTimestamp:      params.CollectionTimestamp,
-			SourceFile:          "/Library/Preferences/SystemConfiguration/NetworkInterfaces.plist",
-			Data: map[string]interface{}{
-				"src_name":       "network_interfaces",
-				"type":           "lo0",
-				"name":           "Loopback",
-				"active":         true,
-				"built_in":       true,
-				"mac_address":    "",
-				"interface_type": "Loopback",
-			},
-		},
-	}
-
-	// Write the records to the output file
-	file, err := os.Create(outputFile)
-	assert.NoError(t, err)
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	for _, record := range interfaces {
-		err := encoder.Encode(record)
-		assert.NoError(t, err)
-	}
-}
-
-// Verify the airport preferences output file
-func verifyAirportPreferencesOutput(t *testing.T, outputFile string) {
-	// Read the file
-	data, err := os.ReadFile(outputFile)
-	assert.NoError(t, err)
-
-	// Parse JSON lines
-	lines := splitJSONLines(data)
-	assert.GreaterOrEqual(t, len(lines), 3, "Should have at least 3 WiFi networks")
-
-	// Check for expected network names
-	var foundHomeWiFi, foundCoffeeShop, foundHotspot bool
-
-	for _, line := range lines {
 		var record map[string]interface{}
-		err := json.Unmarshal(line, &record)
-		assert.NoError(t, err)
+		err = json.Unmarshal([]byte(line), &record)
+		require.NoError(t, err)
+		records = append(records, record)
+	}
+	require.NoError(t, scanner.Err())
+	require.Equal(t, 2, len(records))
 
-		// Check common fields
-		assert.NotEmpty(t, record["collection_timestamp"])
-		assert.NotEmpty(t, record["event_timestamp"])
-		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"], "com.apple.airport.preferences.plist")
-
-		// Check data
-		data, ok := record["data"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.Equal(t, "airport", data["src_name"])
-		assert.Equal(t, "Airport", data["type"])
-		assert.NotEmpty(t, data["name"])
-		assert.NotEmpty(t, data["last_connected"])
-		assert.NotEmpty(t, data["security"])
-
-		// Track specific networks
-		if name, ok := data["name"].(string); ok {
-			switch name {
-			case "HomeWiFi":
-				foundHomeWiFi = true
-				assert.Equal(t, true, data["auto_login"])
-			case "CoffeeShopWiFi":
-				foundCoffeeShop = true
-				assert.Equal(t, true, data["captive_bypass"])
-			case "iPhone Hotspot":
-				foundHotspot = true
-				assert.Equal(t, true, data["hotspot"])
-			}
+	// Check each record
+	for _, record := range records {
+		// Check airport records properly
+		switch record["name"] {
+		case "TestWiFi":
+			require.Equal(t, "Airport", record["type"])
+			require.Equal(t, "WPA2", record["security"])
+			require.Equal(t, true, record["hotspot"])
+			require.Equal(t, "None", record["roaming_profile"])
+		case "HomeWiFi":
+			require.Equal(t, "Airport", record["type"])
+			require.Equal(t, "WPA3", record["security"])
+			require.Equal(t, false, record["hotspot"])
+			require.Equal(t, "Automatic", record["roaming_profile"])
+		default:
+			t.Fatalf("Unexpected network name: %v", record["name"])
 		}
 	}
-
-	assert.True(t, foundHomeWiFi, "Should contain HomeWiFi network")
-	assert.True(t, foundCoffeeShop, "Should contain CoffeeShopWiFi network")
-	assert.True(t, foundHotspot, "Should contain iPhone Hotspot network")
 }
 
-// Verify the network interfaces output file
-func verifyNetworkInterfacesOutput(t *testing.T, outputFile string) {
-	// Read the file
-	data, err := os.ReadFile(outputFile)
-	assert.NoError(t, err)
+func TestParseNetworkInterfaces(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "netcfgplists_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
-	// Parse JSON lines
-	lines := splitJSONLines(data)
-	assert.GreaterOrEqual(t, len(lines), 3, "Should have at least 3 network interfaces")
+	// Create test plist data
+	interfacesPlist := map[string]interface{}{
+		"Interfaces": []interface{}{
+			map[string]interface{}{
+				"BSD Name": "en0",
+				"SCNetworkInterfaceInfo": map[string]interface{}{
+					"UserDefinedName": "Wi-Fi",
+				},
+				"Active":      true,
+				"Built-In":    true,
+				"MAC Address": "00:11:22:33:44:55",
+				"Product":     "AirPort Extreme",
+				"Vendor":      "Apple Inc.",
+				"Model":       "AirPort",
+				"Type":        "Ethernet",
+			},
+			map[string]interface{}{
+				"BSD Name": "en1",
+				"SCNetworkInterfaceInfo": map[string]interface{}{
+					"UserDefinedName": "Ethernet Adapter",
+				},
+				"Active":      false,
+				"Built-In":    false,
+				"MAC Address": "aa:bb:cc:dd:ee:ff",
+				"Product":     "USB Ethernet",
+				"Vendor":      "Third Party",
+				"Model":       "USB-C Ethernet",
+				"Type":        "Ethernet",
+			},
+		},
+	}
 
-	// Check for expected interfaces
-	var foundWiFi, foundEthernet, foundLoopback bool
+	// Create temporary plist file
+	interfacesPath := filepath.Join(tmpDir, "interfaces.plist")
+	plistData, err := plist.Marshal(interfacesPlist, plist.XMLFormat)
+	require.NoError(t, err)
+	err = os.WriteFile(interfacesPath, plistData, 0600)
+	require.NoError(t, err)
 
-	for _, line := range lines {
+	// Create output files for the records
+	outputDir := filepath.Join(tmpDir, "output")
+	err = os.MkdirAll(outputDir, 0755)
+	require.NoError(t, err)
+
+	// Get test records
+	collectionTime := "2023-03-01T10:00:00Z"
+
+	// Create the expected records
+	record1 := utils.Record{
+		CollectionTimestamp: collectionTime,
+		EventTimestamp:      collectionTime,
+		SourceFile:          interfacesPath,
+		Data: map[string]interface{}{
+			"src_name":       "network_interfaces",
+			"type":           "en0",
+			"name":           "Wi-Fi",
+			"active":         true,
+			"built_in":       true,
+			"mac_address":    "00:11:22:33:44:55",
+			"product":        "AirPort Extreme",
+			"vendor":         "Apple Inc.",
+			"model":          "AirPort",
+			"interface_type": "Ethernet",
+		},
+	}
+
+	record2 := utils.Record{
+		CollectionTimestamp: collectionTime,
+		EventTimestamp:      collectionTime,
+		SourceFile:          interfacesPath,
+		Data: map[string]interface{}{
+			"src_name":       "network_interfaces",
+			"type":           "en1",
+			"name":           "Ethernet Adapter",
+			"active":         false,
+			"built_in":       false,
+			"mac_address":    "aa:bb:cc:dd:ee:ff",
+			"product":        "USB Ethernet",
+			"vendor":         "Third Party",
+			"model":          "USB-C Ethernet",
+			"interface_type": "Ethernet",
+		},
+	}
+
+	// Create JSON files for these records
+	record1File := filepath.Join(outputDir, "record1.json")
+	record2File := filepath.Join(outputDir, "record2.json")
+
+	testutils.WriteTestRecord(t, record1File, record1)
+	testutils.WriteTestRecord(t, record2File, record2)
+
+	// Create test module params and run the function directly
+	logger := testutils.NewTestLogger()
+	params := mod.ModuleParams{
+		Logger:              *logger,
+		OutputDir:           "./",
+		LogsDir:             tmpDir,
+		CollectionTimestamp: collectionTime,
+		ExportFormat:        "json",
+	}
+
+	// This test isn't meant to fully execute the function since we're not mocking DataWriter
+	// Just verify it doesn't panic
+	err = parseNetworkInterfaces(interfacesPath, "netcfgplists", params)
+	require.NoError(t, err)
+
+	// Read the output file netcfgplists-interfaces.json
+	outputFile := filepath.Join(tmpDir, "netcfgplists-interfaces.json")
+	require.FileExists(t, outputFile)
+
+	// Read line by line since the file contains separate JSON objects
+	fileContent, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+
+	var records []map[string]interface{}
+	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
 		var record map[string]interface{}
-		err := json.Unmarshal(line, &record)
-		assert.NoError(t, err)
+		err = json.Unmarshal([]byte(line), &record)
+		require.NoError(t, err)
+		records = append(records, record)
+	}
+	require.NoError(t, scanner.Err())
+	require.Equal(t, 2, len(records))
 
-		// Check common fields
-		assert.NotEmpty(t, record["collection_timestamp"])
-		assert.NotEmpty(t, record["event_timestamp"])
-		assert.NotEmpty(t, record["source_file"])
-		assert.Contains(t, record["source_file"], "NetworkInterfaces.plist")
-
-		// Check data
-		data, ok := record["data"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.Equal(t, "network_interfaces", data["src_name"])
-		assert.NotEmpty(t, data["type"])
-		assert.NotEmpty(t, data["name"])
-
-		// Track specific interfaces
-		if itype, ok := data["type"].(string); ok {
-			switch itype {
-			case "en0":
-				foundWiFi = true
-				assert.Equal(t, "Wi-Fi", data["name"])
-				assert.Equal(t, true, data["active"])
-				assert.Equal(t, "IEEE80211", data["interface_type"])
-			case "en1":
-				foundEthernet = true
-				assert.Equal(t, "Thunderbolt Ethernet", data["name"])
-				assert.Equal(t, false, data["active"])
-				assert.Equal(t, "Ethernet", data["interface_type"])
-			case "lo0":
-				foundLoopback = true
-				assert.Equal(t, "Loopback", data["name"])
-				assert.Equal(t, "Loopback", data["interface_type"])
-			}
+	// Check each record
+	for _, record := range records {
+		// Check if this is the first or second interface based on name
+		if record["name"] == "Wi-Fi" {
+			require.Equal(t, "en0", record["type"])
+			require.Equal(t, true, record["active"])
+			require.Equal(t, "AirPort Extreme", record["product"])
+		} else {
+			require.Equal(t, "en1", record["type"])
+			require.Equal(t, "Ethernet Adapter", record["name"])
+			require.Equal(t, false, record["active"])
+			require.Equal(t, "USB Ethernet", record["product"])
 		}
 	}
-
-	assert.True(t, foundWiFi, "Should contain WiFi interface")
-	assert.True(t, foundEthernet, "Should contain Ethernet interface")
-	assert.True(t, foundLoopback, "Should contain Loopback interface")
-}
-
-// Helper function to split JSON lines
-func splitJSONLines(data []byte) [][]byte {
-	var lines [][]byte
-	start := 0
-
-	for i := 0; i < len(data); i++ {
-		if data[i] == '\n' {
-			if i > start {
-				lines = append(lines, data[start:i])
-			}
-			start = i + 1
-		}
-	}
-
-	if start < len(data) {
-		lines = append(lines, data[start:])
-	}
-
-	return lines
 }
