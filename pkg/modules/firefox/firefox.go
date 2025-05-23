@@ -76,6 +76,10 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 		params.Logger.Debug("Failed to create directory /tmp/ishinobu-Firefox-History", err)
 		return err
 	}
+	// Use defer to ensure cleanup happens regardless of how the function exits
+	defer func() {
+		os.RemoveAll(ishinobuDir)
+	}()
 
 	profile := filepath.Base(location)
 	user := strings.Split(location, "/")[2]
@@ -104,6 +108,7 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 	if err != nil {
 		return fmt.Errorf("error querying SQLite: %w", err)
 	}
+	defer rows.Close()
 
 	recordData := make(map[string]interface{})
 	for rows.Next() {
@@ -139,12 +144,6 @@ func collectFirefoxHistory(location, moduleName string, params mod.ModuleParams)
 		}
 	}
 
-	// Cleanup
-	err = os.RemoveAll(ishinobuDir)
-	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-History: %w", err)
-	}
-
 	return nil
 }
 
@@ -155,6 +154,10 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 		params.Logger.Debug("Failed to create directory /tmp/ishinobu-Firefox-Downloads", err)
 		return err
 	}
+	// Use defer to ensure cleanup happens regardless of how the function exits
+	defer func() {
+		os.RemoveAll(ishinobuDir)
+	}()
 
 	profile := filepath.Base(location)
 	user := strings.Split(location, "/")[2]
@@ -182,6 +185,7 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 	if err != nil {
 		return fmt.Errorf("error querying SQLite: %w", err)
 	}
+	defer rows.Close()
 
 	recordData := make(map[string]interface{})
 	for rows.Next() {
@@ -228,12 +232,6 @@ func collectFirefoxDownloads(location, moduleName string, params mod.ModuleParam
 		if err != nil {
 			params.Logger.Debug("Failed to write record: %v", err)
 		}
-	}
-
-	// Cleanup
-	err = os.RemoveAll(ishinobuDir)
-	if err != nil {
-		return fmt.Errorf("error removing directory /tmp/ishinobu-Firefox-Downloads: %w", err)
 	}
 
 	return nil
