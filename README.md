@@ -95,6 +95,7 @@ The application supports a timeout for each module.
 	- [❌] Time and date changes - System time adjustments. Disabled by default.
 - **👥 users**: Collects and parses user information.
 - **🔐 utmpx**: Collects and parses utmpx login records.
+- **👨‍💻 vscode**: Collects and parses VSCode extensions.
 
 # 👨‍💻 Guide for developers
 - [DEV.md](./DEV.md)
