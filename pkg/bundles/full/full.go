@@ -27,4 +27,5 @@ import (
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/unifiedlogs"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/users"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/utmpx"
+	_ "github.com/gnzdotmx/ishinobu/pkg/modules/vscode"
 )
