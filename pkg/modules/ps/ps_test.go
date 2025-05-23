@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
-	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
+	"github.com/gnzdotmx/ishinobu/pkg/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
 )
 

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
-	"github.com/gnzdotmx/ishinobu/pkg/modules/testutils"
+	"github.com/gnzdotmx/ishinobu/pkg/testutils"
 )
 
 // TestCollectChromeCookies tests the collectChromeCookies function
