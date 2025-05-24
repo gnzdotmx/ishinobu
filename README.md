@@ -62,6 +62,7 @@ The application supports a timeout for each module.
 - **🔍 auditlogs**: Collects information from the macOS audit logs.
 - **🌐 chrome**: Collects and parses chrome history, downloads, extensions, accessed domains by extensions, popup settings, and profiles.
 - **📊 coreanalytics**: Collects and parses coreanalytics data.
+- **🖥️ cursor**: Collects and parses Cursor extensions.
 - **🦊 firefox**: Collects and parses Firefox browser history, downloads, and extensions.
 - **📂 listfiles**: Collects metadata for files and folders on disk (Warning: This module can take a while to complete based on the amount of files in the system).
 - **📝 lsof**: Collects information about open files, network connections, and processes.
