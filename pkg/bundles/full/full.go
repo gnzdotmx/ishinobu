@@ -8,6 +8,7 @@ import (
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/browsercookies"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/chrome"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/coreanalytics"
+	_ "github.com/gnzdotmx/ishinobu/pkg/modules/cursor"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/firefox"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/listfiles"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/lsof"
