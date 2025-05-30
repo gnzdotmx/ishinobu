@@ -7,6 +7,7 @@ import (
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/autostart"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/browsercookies"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/chrome"
+	_ "github.com/gnzdotmx/ishinobu/pkg/modules/claude"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/coreanalytics"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/cursor"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/firefox"

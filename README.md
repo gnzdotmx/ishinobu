@@ -61,6 +61,7 @@ The application supports a timeout for each module.
 - **📜 asl**: Collects and parses logs from Apple System Logs (ASL).
 - **🔍 auditlogs**: Collects information from the macOS audit logs.
 - **🌐 chrome**: Collects and parses chrome history, downloads, extensions, accessed domains by extensions, popup settings, and profiles.
+- **🔍 claude**: Collects and parses Claude MCP configurations.
 - **📊 coreanalytics**: Collects and parses coreanalytics data.
 - **🖥️ cursor**: Collects and parses Cursor extensions.
 - **🦊 firefox**: Collects and parses Firefox browser history, downloads, and extensions.
