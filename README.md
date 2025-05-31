@@ -95,6 +95,7 @@ The application supports a timeout for each module.
 	- [❌] Configuration changes - Software installations. Disabled by default.
 	- [❌] Hardware events - Peripheral connections. Disabled by default.
 	- [❌] Time and date changes - System time adjustments. Disabled by default.
+- **💾 usbhistory**: Collects and parses USB devices, history, and registry for the last 24 hours.
 - **👥 users**: Collects and parses user information.
 - **🔐 utmpx**: Collects and parses utmpx login records.
 - **👨‍💻 vscode**: Collects and parses VSCode extensions.

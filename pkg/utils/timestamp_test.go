@@ -159,3 +159,80 @@ func TestParseChromeTimestamp(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTimestampWithFormats(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "format with nanoseconds and negative offset",
+			input:   "2023-01-02 15:04:05.999999-0700",
+			want:    "2023-01-02T15:04:05-07:00",
+			wantErr: false,
+		},
+		{
+			name:    "format with nanoseconds and positive offset",
+			input:   "2023-01-02 15:04:05.999999+0700",
+			want:    "2023-01-02T15:04:05+07:00",
+			wantErr: false,
+		},
+		{
+			name:    "format with nanoseconds and spaced negative offset",
+			input:   "2023-01-02 15:04:05.999999 -0700",
+			want:    "2023-01-02T15:04:05-07:00",
+			wantErr: false,
+		},
+		{
+			name:    "format with nanoseconds and spaced positive offset",
+			input:   "2023-01-02 15:04:05.999999 +0700",
+			want:    "2023-01-02T15:04:05+07:00",
+			wantErr: false,
+		},
+		{
+			name:    "format with nanoseconds, offset and timezone",
+			input:   "2023-01-02 15:04:05.999999 -0700 MST",
+			want:    "2023-01-02T15:04:05-07:00",
+			wantErr: false,
+		},
+		{
+			name:    "format with nanoseconds only",
+			input:   "2023-01-02 15:04:05.999999",
+			want:    "2023-01-02T15:04:05Z",
+			wantErr: false,
+		},
+		{
+			name:    "RFC3339 format",
+			input:   "2023-01-02T15:04:05-07:00",
+			want:    "2023-01-02T15:04:05-07:00",
+			wantErr: false,
+		},
+		{
+			name:    "invalid timestamp format",
+			input:   "invalid timestamp",
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name:    "empty string",
+			input:   "",
+			want:    "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseTimestampWithFormats(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseTimestampWithFormats() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParseTimestampWithFormats() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
