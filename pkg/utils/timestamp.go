@@ -1,12 +1,18 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 )
 
 const TimeFormat = "2006-01-02T15:04:05Z07:00"
+
+var (
+	// Static errors
+	errParseTimestamp = errors.New("failed to parse timestamp with any known format")
+)
 
 func Now() string {
 	return time.Now().Format(TimeFormat)
@@ -73,4 +79,30 @@ func ParseChromeTimestamp(microsecondsStr string) string {
 
 	// Format the result to ISO 8601 with nanosecond precision and return
 	return timestamp.Format(TimeFormat)
+}
+
+// ParseTimestampWithFormats attempts to parse a timestamp string using multiple common formats
+// It returns the timestamp in the standard TimeFormat (2006-01-02T15:04:05Z07:00)
+func ParseTimestampWithFormats(value string) (string, error) {
+	formats := []string{
+		"2006-01-02 15:04:05.999999-0700",
+		"2006-01-02 15:04:05.999999+0700",
+		"2006-01-02 15:04:05.999999 -0700",
+		"2006-01-02 15:04:05.999999 +0700",
+		"2006-01-02 15:04:05.999999 -0700 MST",
+		"2006-01-02 15:04:05.999999 +0700 MST",
+		"2006-01-02 15:04:05.999999",
+		time.RFC3339,
+	}
+
+	location, _ := time.LoadLocation("UTC")
+	var lastErr error
+	for _, format := range formats {
+		if t, err := time.ParseInLocation(format, value, location); err == nil {
+			return t.Format(TimeFormat), nil
+		} else {
+			lastErr = err
+		}
+	}
+	return "", fmt.Errorf("%w: %s (%v)", errParseTimestamp, value, lastErr)
 }

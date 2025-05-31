@@ -27,6 +27,7 @@ import (
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/systeminfo"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/terminal"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/unifiedlogs"
+	_ "github.com/gnzdotmx/ishinobu/pkg/modules/usbhistory"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/users"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/utmpx"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/vscode"
