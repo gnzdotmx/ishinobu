@@ -2,12 +2,10 @@ package utmpx
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -220,7 +218,7 @@ func TestParseUtmpxInvalidFile(t *testing.T) {
 
 	// Test with invalid file (too small)
 	invalidPath := filepath.Join(tmpDir, "invalid_utmpx")
-	err = os.WriteFile(invalidPath, []byte("invalid data"), 0644)
+	err = os.WriteFile(invalidPath, []byte("invalid data"), 0600)
 	require.NoError(t, err)
 
 	err = parseUtmpx(params, invalidPath, testWriter)
@@ -242,10 +240,9 @@ func createUtmpxRecord(user, id, terminalType string, pid int32, logonType int16
 	record.Pid = pid
 	record.LogonType = logonType
 
-	// Set a sample timestamp (current time)
-	now := time.Now()
-	record.Timestamp = int32(now.Unix())
-	record.Microseconds = int32(now.Nanosecond() / 1000)
+	// Set a sample timestamp (2024-01-01 00:00:00 UTC)
+	record.Timestamp = 1704067200
+	record.Microseconds = 500000
 
 	return record
 }
@@ -385,7 +382,7 @@ func TestParseUtmpxEdgeCases(t *testing.T) {
 type failingWriter struct{}
 
 func (w *failingWriter) WriteRecord(record utils.Record) error {
-	return fmt.Errorf("simulated write failure")
+	return errWriteRecord
 }
 
 func (w *failingWriter) Close() error {

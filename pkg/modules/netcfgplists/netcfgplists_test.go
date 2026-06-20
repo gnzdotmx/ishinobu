@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"howett.net/plist"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/require"
-	"howett.net/plist"
 )
 
 func TestParseAirportPreferences(t *testing.T) {

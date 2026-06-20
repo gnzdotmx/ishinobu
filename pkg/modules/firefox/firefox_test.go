@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/testutils"
 	"github.com/gnzdotmx/ishinobu/pkg/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestCollectFirefoxHistory(t *testing.T) {
