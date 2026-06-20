@@ -74,7 +74,7 @@ func (m *UtmpxModule) Run(params mod.ModuleParams) error {
 	err = parseUtmpx(params, utmpxPath, writer)
 	if err != nil {
 		params.Logger.Debug("Error parsing utmpx: %v", err)
-		return fmt.Errorf("error parsing utmpx: %v", err)
+		return fmt.Errorf("%w: %v", errParseUtmpx, err)
 	}
 
 	return nil
@@ -84,7 +84,7 @@ func parseUtmpx(params mod.ModuleParams, utmpxPath string, writer utils.DataWrit
 	// Read the utmpx file
 	data, err := os.ReadFile(utmpxPath)
 	if err != nil {
-		return fmt.Errorf("error reading utmpx file: %v", err)
+		return fmt.Errorf("%w: %v", errReadUtmpxFile, err)
 	}
 
 	// Get record size

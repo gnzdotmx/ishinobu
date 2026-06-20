@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/gnzdotmx/ishinobu/pkg/mod"
 	"github.com/gnzdotmx/ishinobu/pkg/testutils"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGetName(t *testing.T) {
@@ -76,7 +77,7 @@ func TestParseAnalyticsFiles(t *testing.T) {
 {"message":{"processName":"TestProcess","uptime":3600,"powerTime":1800,"foreground":true,"appDescription":"TestApp ||| 1.0","activations":5},"name":"AppUsage","uuid":"test-uuid-1"}
 {"message":{"processName":"TestProcess2","activeTime":1200,"foreground":false,"appName":"TestApp2","appVersion":"2.0","launches":3},"name":"AppLaunch","uuid":"test-uuid-2"}
 `
-	err = os.WriteFile(analyticsFile, []byte(analyticContent), 0644)
+	err = os.WriteFile(analyticsFile, []byte(analyticContent), 0600)
 	assert.NoError(t, err)
 
 	// Setup test params
@@ -154,7 +155,7 @@ func TestParseAggregateFiles(t *testing.T) {
 	jsonData, err := json.Marshal(aggregateData)
 	assert.NoError(t, err)
 
-	err = os.WriteFile(aggregateFile, jsonData, 0644)
+	err = os.WriteFile(aggregateFile, jsonData, 0600)
 	assert.NoError(t, err)
 
 	// Setup test params

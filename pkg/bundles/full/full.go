@@ -1,6 +1,7 @@
 package full
 
 import (
+	_ "github.com/gnzdotmx/ishinobu/pkg/modules/aiconfig"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/appstore"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/asl"
 	_ "github.com/gnzdotmx/ishinobu/pkg/modules/auditlog"

@@ -57,6 +57,7 @@ The application supports a timeout for each module.
 - `60`: 60 seconds
 
 ## 📦 Modules
+- **🤖 aiconfig**: Collects AI tool MCP configurations, agent hooks, and instruction files (Claude Desktop/Code, Cursor, Windsurf, Cline, Gemini CLI, Codex CLI, OpenCode, Continue, VS Code, GitHub Copilot, Aider, Amazon Q, Kiro, Goose, Zed).
 - **📱 appstore**: Collects App Store installation history and receipt information.
 - **📜 asl**: Collects and parses logs from Apple System Logs (ASL).
 - **🔍 auditlogs**: Collects information from the macOS audit logs.

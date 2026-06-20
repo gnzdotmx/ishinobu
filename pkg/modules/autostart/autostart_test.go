@@ -31,7 +31,7 @@ func TestParseLaunchItems(t *testing.T) {
 
 	plistData, err := plist.Marshal(testPlist, plist.XMLFormat)
 	assert.NoError(t, err)
-	err = os.WriteFile(testPlistPath, plistData, 0644)
+	err = os.WriteFile(testPlistPath, plistData, 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -90,7 +90,7 @@ func TestParseLoginItems(t *testing.T) {
 
 	plistData, err := plist.Marshal(testLoginItems, plist.XMLFormat)
 	assert.NoError(t, err)
-	err = os.WriteFile(testLoginPlistPath, plistData, 0644)
+	err = os.WriteFile(testLoginPlistPath, plistData, 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -134,7 +134,7 @@ func TestParseStartupItems(t *testing.T) {
 	assert.NoError(t, err)
 
 	startupFile := filepath.Join(startupDir, "TestStartup")
-	err = os.WriteFile(startupFile, []byte("#!/bin/sh\n# Test startup item"), 0755)
+	err = os.WriteFile(startupFile, []byte("#!/bin/sh\n# Test startup item"), 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -178,7 +178,7 @@ func TestParseCronJobs(t *testing.T) {
 # Comment line
 15 2 * * * /bin/echo "test"`
 
-	err = os.WriteFile(cronFile, []byte(cronContent), 0644)
+	err = os.WriteFile(cronFile, []byte(cronContent), 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -237,7 +237,7 @@ func TestParseSandboxedLoginItems(t *testing.T) {
 
 	plistData, err := plist.Marshal(testSandboxedItems, plist.XMLFormat)
 	assert.NoError(t, err)
-	err = os.WriteFile(testPlistPath, plistData, 0644)
+	err = os.WriteFile(testPlistPath, plistData, 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -288,7 +288,7 @@ func TestParseScriptingAdditions(t *testing.T) {
 	assert.NoError(t, err)
 
 	scriptingFile := filepath.Join(scriptingDir, "TestAddition.osax")
-	err = os.WriteFile(scriptingFile, []byte("test scripting addition file content"), 0644)
+	err = os.WriteFile(scriptingFile, []byte("test scripting addition file content"), 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -333,12 +333,12 @@ func TestParsePeriodicTasks(t *testing.T) {
 
 	// Create a test periodic task file
 	periodicFile := filepath.Join(dailyDir, "clean.sh")
-	err = os.WriteFile(periodicFile, []byte("#!/bin/sh\n# Test periodic task"), 0755)
+	err = os.WriteFile(periodicFile, []byte("#!/bin/sh\n# Test periodic task"), 0600)
 	assert.NoError(t, err)
 
 	// Create a test periodic.conf file
 	periodicConfFile := filepath.Join(tmpDir, "periodic.conf")
-	err = os.WriteFile(periodicConfFile, []byte("# Test periodic conf\ndaily_clean_enable=\"YES\"\n"), 0644)
+	err = os.WriteFile(periodicConfFile, []byte("# Test periodic conf\ndaily_clean_enable=\"YES\"\n"), 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -398,7 +398,7 @@ func TestAutostartModuleRun(t *testing.T) {
 	launchAgentPlistData, err := plist.Marshal(launchAgentPlist, plist.XMLFormat)
 	assert.NoError(t, err)
 	launchAgentPath := filepath.Join(launchAgentsDir, "com.test.launch.plist")
-	err = os.WriteFile(launchAgentPath, launchAgentPlistData, 0644)
+	err = os.WriteFile(launchAgentPath, launchAgentPlistData, 0600)
 	assert.NoError(t, err)
 
 	// 2. Login Items
@@ -423,7 +423,7 @@ func TestAutostartModuleRun(t *testing.T) {
 	loginItemsData, err := plist.Marshal(loginItemsList, plist.XMLFormat)
 	assert.NoError(t, err)
 	loginItemsPath := filepath.Join(prefsDir, "com.apple.loginitems.plist")
-	err = os.WriteFile(loginItemsPath, loginItemsData, 0644)
+	err = os.WriteFile(loginItemsPath, loginItemsData, 0600)
 	assert.NoError(t, err)
 
 	// Set up test parameters
@@ -494,7 +494,7 @@ func TestParseErrorHandling(t *testing.T) {
 	err = os.MkdirAll(invalidPlistDir, 0755)
 	assert.NoError(t, err)
 	invalidPlistPath := filepath.Join(invalidPlistDir, "invalid.plist")
-	err = os.WriteFile(invalidPlistPath, []byte("this is not a valid plist file"), 0644)
+	err = os.WriteFile(invalidPlistPath, []byte("this is not a valid plist file"), 0600)
 	assert.NoError(t, err)
 
 	testWriter := &testutils.TestDataWriter{Records: []utils.Record{}}
